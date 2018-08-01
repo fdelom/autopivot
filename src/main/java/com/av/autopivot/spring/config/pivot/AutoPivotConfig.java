@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.pivot;
 
 import static com.quartetfs.fwk.types.impl.ExtendedPluginInjector.inject;
 
@@ -31,6 +31,14 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 
 import com.activeviam.health.monitor.impl.HealthCheckAgent;
+import com.av.autopivot.spring.config.contentserver.ContentServiceConfig;
+import com.av.autopivot.spring.config.datastore.DatastoreDescriptionConfig;
+import com.av.autopivot.spring.config.datastore.DatastoreServiceConfig;
+import com.av.autopivot.spring.config.source.SourceConfig;
+import com.av.autopivot.spring.config.ui.ActiveUIResourceServerConfig;
+import com.av.autopivot.spring.security.ActivePivotBranchPermissionsManagerConfig;
+import com.av.autopivot.spring.security.AutoPivotCorsFilterConfig;
+import com.av.autopivot.spring.security.SecurityConfig;
 import com.qfs.content.cfg.impl.ContentServerWebSocketServicesConfig;
 import com.qfs.distribution.security.IDistributedSecurityManager;
 import com.qfs.messenger.IDistributedMessenger;

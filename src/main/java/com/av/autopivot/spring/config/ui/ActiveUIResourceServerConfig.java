@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.ui;
 
 import java.util.Set;
 
@@ -93,6 +93,7 @@ public class ActiveUIResourceServerConfig extends ASpringResourceServerConfig {
 
 		return QfsArrays.mutableSet(
 				"/activeui/", // index.html, favicon.ico, etc.
+				"/i18n/",
 				"classpath:META-INF/resources/activeviam/activeui-sdk/", // ActiveUI SDK UMD scripts and supporting assets
 				"classpath:META-INF/resources/webjars/react/16.3.1/umd/",
 				"classpath:META-INF/resources/webjars/react-dom/16.3.1/umd/");

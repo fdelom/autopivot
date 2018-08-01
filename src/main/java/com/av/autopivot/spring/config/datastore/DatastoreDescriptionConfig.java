@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.datastore;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotGenerator;
+import com.av.autopivot.spring.config.source.SourceConfig;
 import com.av.csv.CSVFormat;
 import com.qfs.desc.IDatastoreSchemaDescription;
 import com.qfs.desc.IReferenceDescription;

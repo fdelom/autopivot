@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.contentserver;
+
+import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
+import com.av.autopivot.spring.config.pivot.ActivePivotManagerDescriptionConfig;
+import com.av.autopivot.spring.config.ui.ActiveUIResourceServerConfig;
 import com.qfs.content.cfg.impl.ContentServerRestServicesConfig;
 import com.qfs.content.service.IContentService;
 import com.qfs.pivot.content.IActivePivotContentService;
@@ -62,7 +66,7 @@ public class ContentServiceConfig implements IActivePivotContentServiceConfig {
 		return new ActivePivotContentServiceBuilder()
 				.withoutPersistence()
 				.withoutCache()
-				.needInitialization(SecurityConfig.ROLE_USER, SecurityConfig.ROLE_USER)
+				.needInitialization(ROLE_USER, ROLE_USER)
 				.withDescription(manager)
 				// Push the context values stored in ROLE-INF directory
 				.withContextValues("ROLE-INF")

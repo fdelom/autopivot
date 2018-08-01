@@ -4,10 +4,10 @@
  * property of Quartet Financial Systems Limited. Any unauthorized use,
  * reproduction or transfer of this material is strictly prohibited
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.datastore;
 
-import static com.av.autopivot.spring.SecurityConfig.ROLE_ADMIN;
-import static com.av.autopivot.spring.SecurityConfig.ROLE_USER;
+import static com.av.autopivot.spring.security.SecurityConstant.ROLE_ADMIN;
+import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
 
 import java.util.HashMap;
 import java.util.Map;

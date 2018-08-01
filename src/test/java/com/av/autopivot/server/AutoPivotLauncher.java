@@ -29,7 +29,7 @@ import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
 import org.springframework.web.WebApplicationInitializer;
 
-import com.av.autopivot.spring.AutoPivotWebAppInitializer;
+import com.av.autopivot.spring.config.AutoPivotWebAppInitializer;
 
 /**
  * 

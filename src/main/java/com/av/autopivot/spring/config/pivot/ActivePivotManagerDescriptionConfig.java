@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring;
+package com.av.autopivot.spring.config.pivot;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotGenerator;
+import com.av.autopivot.spring.config.datastore.DatastoreDescriptionConfig;
+import com.av.autopivot.spring.config.source.SourceConfig;
 import com.av.csv.CSVFormat;
 import com.qfs.server.cfg.IActivePivotManagerDescriptionConfig;
 import com.quartetfs.biz.pivot.definitions.IActivePivotManagerDescription;
