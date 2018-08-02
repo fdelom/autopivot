@@ -55,7 +55,7 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 	@Override
 	public IActivePivotManagerDescription managerDescription() {
 
-		CSVFormat discovery = sourceConfig.discoverFile();
+		CSVFormat discovery = sourceConfig.discoverCreator().createDiscoveryFormat();
 
 		AutoPivotGenerator generator = datastoreConfig.generator();
 		IActivePivotManagerDescription manager =

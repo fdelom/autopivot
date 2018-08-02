@@ -83,7 +83,7 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 	 */
 	@Bean
 	public IDatastoreSchemaDescription schemaDescription() {
-		CSVFormat discovery = sourceConfig.discoverFile();
+		CSVFormat discovery = sourceConfig.discoverCreator().createDiscoveryFormat();
 		AutoPivotGenerator generator = generator();
 		
 		final Collection<IStoreDescription> stores = new LinkedList<>();

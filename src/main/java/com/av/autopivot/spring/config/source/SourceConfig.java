@@ -20,7 +20,6 @@ package com.av.autopivot.spring.config.source;
 
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,25 +32,26 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.env.Environment;
 
+import com.av.autopivot.AutoPivotDiscoveryCreator;
 import com.av.autopivot.AutoPivotGenerator;
 import com.av.csv.CSVFormat;
 import com.av.csv.calculator.DateDayCalculator;
 import com.av.csv.calculator.DateMonthCalculator;
 import com.av.csv.calculator.DateYearCalculator;
-import com.av.csv.discover.CSVDiscovery;
 import com.qfs.msg.IColumnCalculator;
 import com.qfs.msg.csv.ICSVSource;
 import com.qfs.msg.csv.ICSVSourceConfiguration;
+import com.qfs.msg.csv.ICSVTopic;
 import com.qfs.msg.csv.IFileInfo;
 import com.qfs.msg.csv.ILineReader;
-import com.qfs.msg.csv.filesystem.impl.SingleFileCSVTopic;
-import com.qfs.msg.csv.impl.CSVParserConfiguration;
 import com.qfs.msg.csv.impl.CSVSource;
 import com.qfs.platform.IPlatform;
 import com.qfs.server.cfg.impl.DatastoreConfig;
+import com.qfs.source.IStoreMessageChannel;
+import com.qfs.source.ITuplePublisher;
+import com.qfs.source.impl.AutoCommitTuplePublisher;
 import com.qfs.source.impl.CSVMessageChannelFactory;
-import com.qfs.source.impl.Fetch;
-import com.quartetfs.fwk.QuartetRuntimeException;
+import com.qfs.source.impl.TuplePublisher;
 
 /**
  *
@@ -97,33 +97,10 @@ public class SourceConfig {
 		return source;
 	}
 	
-	/**
-	 * @return charset used by the CSV parsers.
-	 */
-	@Bean
-	public Charset charset() {
-		String charsetName = env.getProperty("charset");
-		if(charsetName != null) {
-			try {
-				return Charset.forName(charsetName);
-			} catch(Exception e) {
-				LOGGER.warning("Unkown charset: " + charsetName);
-			}
-		}
-		return Charset.defaultCharset();
-	}
-
-
 	/** Discover the input data file (CSV separator, column types) */
 	@Bean
-	public CSVFormat discoverFile() {
-		String fileName = env.getRequiredProperty("fileName");
-		try {
-			CSVFormat discovery = new CSVDiscovery().discoverFile(fileName, charset());
-			return discovery;
-		} catch(Exception e) {
-			throw new QuartetRuntimeException("Could not discover csv file: " + fileName , e);
-		}
+	public AutoPivotDiscoveryCreator discoverCreator() {
+		return new AutoPivotDiscoveryCreator();
 	}
 
 
@@ -134,20 +111,10 @@ public class SourceConfig {
 	@DependsOn(value = "startManager")
 	public Void loadData(ICSVSource<Path> source) throws Exception {
 		
-		CSVFormat discovery = discoverFile();
-		
-		// Create parser configuration
-		CSVParserConfiguration configuration = new CSVParserConfiguration(
-				charset(), 
-				discovery.getSeparator().charAt(0),
-				discovery.getColumnCount(),
-				true,
-				1,
-				CSVParserConfiguration.toMap(discovery.getColumnNames()));
-		configuration.setProcessQuotes(true);
-		
-		String fileName = env.getRequiredProperty("fileName");
-		SingleFileCSVTopic topic = new SingleFileCSVTopic(AutoPivotGenerator.BASE_STORE, configuration, fileName, 1000);
+		AutoPivotDiscoveryCreator discoveryCreator = discoverCreator();
+		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator);
+		ICSVTopic<Path> topic = topicCreator.createTopic(AutoPivotGenerator.BASE_STORE);
+		CSVFormat discovery = discoveryCreator.createDiscoveryFormat();
 		source.addTopic(topic);
 		
 		CSVMessageChannelFactory<Path> channelFactory = new CSVMessageChannelFactory<>(source, datastoreConfig.datastore());
@@ -170,8 +137,15 @@ public class SourceConfig {
 		channelFactory.setCalculatedColumns(AutoPivotGenerator.BASE_STORE, calculatedColumns);
 		
 		
-		Fetch<IFileInfo<Path>, ILineReader> fetch = new Fetch<IFileInfo<Path>, ILineReader>(channelFactory);
-		fetch.fetch(source);
+		// Create Listener to have an effective filewatching
+		final ITuplePublisher<IFileInfo<Path>> publisher 
+						= new AutoCommitTuplePublisher<>(new TuplePublisher<>(datastoreConfig.datastore(), 
+														 AutoPivotGenerator.BASE_STORE));
+		IStoreMessageChannel<IFileInfo<Path>, ILineReader> channel
+						= channelFactory.createChannel(AutoPivotGenerator.BASE_STORE,
+													   AutoPivotGenerator.BASE_STORE,
+													   publisher);
+		source.listen(channel);
 		
 		LOGGER.info("AutoPivot initial loading complete.");
 		
