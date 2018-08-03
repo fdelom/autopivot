@@ -16,17 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring.config.contentserver;
+package com.av.autopivot.config.contentserver;
 
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
+import static com.av.autopivot.security.SecurityConstant.ROLE_USER;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
-import com.av.autopivot.spring.config.pivot.ActivePivotManagerDescriptionConfig;
-import com.av.autopivot.spring.config.ui.ActiveUIResourceServerConfig;
+import com.av.autopivot.config.pivot.ActivePivotManagerDescriptionConfig;
+import com.av.autopivot.config.ui.ActiveUIResourceServerConfig;
 import com.qfs.content.cfg.impl.ContentServerRestServicesConfig;
 import com.qfs.content.service.IContentService;
 import com.qfs.pivot.content.IActivePivotContentService;

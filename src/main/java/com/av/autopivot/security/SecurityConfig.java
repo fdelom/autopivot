@@ -4,13 +4,13 @@
  * property of Quartet Financial Systems Limited. Any unauthorized use,
  * reproduction or transfer of this material is strictly prohibited
  */
-package com.av.autopivot.spring.security;
+package com.av.autopivot.security;
 
-import static com.av.autopivot.spring.security.SecurityConstant.BASIC_AUTH_BEAN_NAME;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_ADMIN;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_CS_ROOT;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_TECH;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
+import static com.av.autopivot.security.SecurityConstant.BASIC_AUTH_BEAN_NAME;
+import static com.av.autopivot.security.SecurityConstant.ROLE_ADMIN;
+import static com.av.autopivot.security.SecurityConstant.ROLE_CS_ROOT;
+import static com.av.autopivot.security.SecurityConstant.ROLE_TECH;
+import static com.av.autopivot.security.SecurityConstant.ROLE_USER;
 
 import java.util.Arrays;
 
@@ -30,11 +30,11 @@ import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
-import com.av.autopivot.spring.config.ui.ActiveUIResourceServerConfig;
-import com.av.autopivot.spring.security.configurer.ActivePivotSecurityConfigurer;
-import com.av.autopivot.spring.security.configurer.ContentServerSecurityConfigurer;
-import com.av.autopivot.spring.security.configurer.JwtSecurityConfigurer;
-import com.av.autopivot.spring.security.configurer.VersionSecurityConfigurer;
+import com.av.autopivot.config.ui.ActiveUIResourceServerConfig;
+import com.av.autopivot.security.configurer.ActivePivotSecurityConfigurer;
+import com.av.autopivot.security.configurer.ContentServerSecurityConfigurer;
+import com.av.autopivot.security.configurer.JwtSecurityConfigurer;
+import com.av.autopivot.security.configurer.VersionSecurityConfigurer;
 import com.qfs.jwt.service.IJwtService;
 import com.qfs.security.spring.impl.CompositeUserDetailsService;
 import com.qfs.server.cfg.IJwtConfig;

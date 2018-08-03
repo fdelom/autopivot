@@ -1,7 +1,7 @@
-package com.av.autopivot.spring.security.configurer;
+package com.av.autopivot.security.configurer;
 
-import static com.av.autopivot.spring.security.SecurityConstant.BASIC_AUTH_BEAN_NAME;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
+import static com.av.autopivot.security.SecurityConstant.BASIC_AUTH_BEAN_NAME;
+import static com.av.autopivot.security.SecurityConstant.ROLE_USER;
 
 import javax.servlet.Filter;
 

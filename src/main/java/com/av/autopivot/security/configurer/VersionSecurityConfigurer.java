@@ -1,4 +1,4 @@
-package com.av.autopivot.spring.security.configurer;
+package com.av.autopivot.security.configurer;
 
 import javax.servlet.Filter;
 

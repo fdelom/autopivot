@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring.config;
+package com.av.autopivot;
 
 import static org.springframework.security.config.BeanIds.SPRING_SECURITY_FILTER_CHAIN;
 
@@ -34,8 +34,8 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 import org.springframework.web.filter.DelegatingFilterProxy;
 import org.springframework.web.servlet.DispatcherServlet;
 
-import com.av.autopivot.spring.config.pivot.AutoPivotConfig;
-import com.av.autopivot.spring.security.CookieUtil;
+import com.av.autopivot.config.pivot.AutoPivotConfig;
+import com.av.autopivot.security.CookieUtil;
 
 /**
  *

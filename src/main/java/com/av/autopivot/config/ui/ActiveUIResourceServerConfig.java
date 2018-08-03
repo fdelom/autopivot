@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring.config.ui;
+package com.av.autopivot.config.ui;
 
 import java.util.Set;
 

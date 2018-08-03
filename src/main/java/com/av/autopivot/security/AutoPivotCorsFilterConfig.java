@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring.security;
+package com.av.autopivot.security;
 
 import java.util.Arrays;
 import java.util.List;

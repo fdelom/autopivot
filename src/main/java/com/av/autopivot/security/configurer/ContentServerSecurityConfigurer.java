@@ -1,6 +1,6 @@
-package com.av.autopivot.spring.security.configurer;
+package com.av.autopivot.security.configurer;
 
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
+import static com.av.autopivot.security.SecurityConstant.ROLE_USER;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;

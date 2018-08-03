@@ -38,7 +38,7 @@ public class AutoPivotDiscoveryCreator {
 	}
 	
 	public Path getDirectoryPathToWatch() {
-		String fwDirField = env.getRequiredProperty("filewacher.dir");
+		String fwDirField = env.getRequiredProperty("filewatcher.dir");
 		
 		Path directory;
 		try {
@@ -115,7 +115,7 @@ public class AutoPivotDiscoveryCreator {
 	 */
 	public CSVFormat createDiscoveryFormat() {
 		CSVFormat discovery = null;
-		Boolean bFwActivated = env.getProperty("filewatcher.actived", Boolean.class, false);
+		Boolean bFwActivated = env.getProperty("filewatcher.activated", Boolean.class, false);
 		if (bFwActivated.equals(true)) {
 			discovery = discoverDir(getDirectoryPathToWatch());
 		}

@@ -1,7 +1,7 @@
-package com.av.autopivot.spring.security.configurer;
+package com.av.autopivot.security.configurer;
 
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_TECH;
-import static com.av.autopivot.spring.security.SecurityConstant.ROLE_USER;
+import static com.av.autopivot.security.SecurityConstant.ROLE_TECH;
+import static com.av.autopivot.security.SecurityConstant.ROLE_USER;
 import static com.qfs.QfsWebUtils.url;
 import static com.qfs.server.cfg.impl.ActivePivotRestServicesConfig.PING_SUFFIX;
 import static com.qfs.server.cfg.impl.ActivePivotRestServicesConfig.REST_API_URL_PREFIX;
@@ -15,7 +15,7 @@ import org.springframework.security.config.BeanIds;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.switchuser.SwitchUserFilter;
 
-import com.av.autopivot.spring.security.CookieUtil;
+import com.av.autopivot.security.CookieUtil;
 import com.qfs.server.cfg.IActivePivotConfig;
 
 /**

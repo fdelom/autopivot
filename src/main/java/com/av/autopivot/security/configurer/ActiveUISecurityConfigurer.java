@@ -1,4 +1,4 @@
-package com.av.autopivot.spring.security.configurer;
+package com.av.autopivot.security.configurer;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -6,7 +6,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
-import com.av.autopivot.spring.config.ui.ActiveUIResourceServerConfig;
+import com.av.autopivot.config.ui.ActiveUIResourceServerConfig;
 
 /**
  * Configuration for ActiveUI.

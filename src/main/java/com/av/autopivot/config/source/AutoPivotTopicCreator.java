@@ -1,9 +1,8 @@
-package com.av.autopivot.spring.config.source;
+package com.av.autopivot.config.source;
 
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotDiscoveryCreator;
@@ -22,13 +21,13 @@ public class AutoPivotTopicCreator {
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotTopicCreator.class);
 	
 	/** Spring environment, automatically wired */
-	@Autowired
 	protected Environment env;
 	
 	private AutoPivotDiscoveryCreator autoPivotDiscoveryCreator = null;
 	
-	public AutoPivotTopicCreator(AutoPivotDiscoveryCreator autoPivotDiscoveryCreator) {
+	public AutoPivotTopicCreator(AutoPivotDiscoveryCreator autoPivotDiscoveryCreator, Environment env) {
 		this.autoPivotDiscoveryCreator = autoPivotDiscoveryCreator;
+		this.env = env;
 	}
 	
 	public ICSVTopic<Path> createTopic(String topicName) {
@@ -39,7 +38,7 @@ public class AutoPivotTopicCreator {
 			throw new QuartetRuntimeException("Failed to initialize CSV Format");
 		}
 		
-		Boolean bFwActivated = env.getProperty("filewatcher.actived", Boolean.class, false);
+		Boolean bFwActivated = env.getProperty("filewatcher.activated", Boolean.class, false);
 		if (bFwActivated.equals(true)) {
 			String pathMatcherConf = autoPivotDiscoveryCreator.getPathMatcher();
 			

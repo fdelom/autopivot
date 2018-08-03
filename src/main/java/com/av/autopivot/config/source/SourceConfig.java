@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.av.autopivot.spring.config.source;
+package com.av.autopivot.config.source;
 
 
 import java.io.IOException;
@@ -112,7 +112,7 @@ public class SourceConfig {
 	public Void loadData(ICSVSource<Path> source) throws Exception {
 		
 		AutoPivotDiscoveryCreator discoveryCreator = discoverCreator();
-		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator);
+		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator, env);
 		ICSVTopic<Path> topic = topicCreator.createTopic(AutoPivotGenerator.BASE_STORE);
 		CSVFormat discovery = discoveryCreator.createDiscoveryFormat();
 		source.addTopic(topic);
