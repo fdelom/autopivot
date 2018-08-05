@@ -38,12 +38,26 @@ public class CSVFormat {
 	/** Column types */
 	protected final List<String> columnTypes;
 	
+	/** File name */
+	protected final String fileName;	
 	
-	public CSVFormat(String separator, List<String> columnNames, List<String> columnTypes) {
+	public CSVFormat(String fileName, String separator, List<String> columnNames, List<String> columnTypes) {
+		this.fileName = fileName;
 		this.separator = separator;
 		this.columnNames = columnNames;
 		this.columnTypes = columnTypes;
 	}
+	
+	/** Get the only the file name without extension */
+	public String getFileNameWithoutExtension() {
+		int nBeginCut = fileName.lastIndexOf("\\");
+		if (nBeginCut == -1) {
+			nBeginCut = fileName.lastIndexOf("/");
+		}
+		return fileName.substring(nBeginCut + 1, fileName.lastIndexOf("."));
+	}
+	
+	public String getFileName() { return fileName; }
 
 	public String getSeparator() { return separator; }
 	

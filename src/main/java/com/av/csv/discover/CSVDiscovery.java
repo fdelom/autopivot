@@ -165,7 +165,7 @@ public class CSVDiscovery {
 
 			LOG.info("Detected types: " + types);
 			
-			return new CSVFormat(separator, headers, types);
+			return new CSVFormat(fileName, separator, headers, types);
 		}
 	}
 

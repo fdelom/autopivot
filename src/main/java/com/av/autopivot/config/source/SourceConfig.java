@@ -103,14 +103,72 @@ public class SourceConfig {
 		return new AutoPivotDiscoveryCreator();
 	}
 
-
 	/**
 	 * Load the CSV file
 	 */
 	@Bean
 	@DependsOn(value = "startManager")
-	public Void loadData(ICSVSource<Path> source) throws Exception {
+	public Void loadAllData(ICSVSource<Path> source) throws Exception {
 		
+		LoadData(source);
+		LoadRefData();
+		
+		LOGGER.info("AutoPivot initial loading complete.");
+		
+		return null; // Void
+	}
+
+	private void LoadRefData() {
+		AutoPivotDiscoveryCreator discoveryCreator = discoverCreator();
+		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator, env);
+		List<CSVFormat> discoveryList = discoveryCreator.createDiscoveryRefFormat();
+
+		// Derive calculated columns
+		for (CSVFormat discovery : discoveryList) {
+			// Allocate half the the machine cores to CSV parsing
+			Integer parserThreads = Math.min(8, Math.max(1, IPlatform.CURRENT_PLATFORM.getProcessorCount() / 2));
+			LOGGER.info("Allocating " + parserThreads + " parser threads.");
+			
+			CSVSource<Path> source = new CSVSource<Path>("CSVSource_" + discovery.getFileNameWithoutExtension());
+			Properties properties = new Properties();
+			properties.put(ICSVSourceConfiguration.BUFFER_SIZE_PROPERTY, "256");
+			properties.put(ICSVSourceConfiguration.PARSER_THREAD_PROPERTY, parserThreads.toString());
+			source.configure(properties);
+			
+			CSVMessageChannelFactory<Path> channelFactory = new CSVMessageChannelFactory<>(source, datastoreConfig.datastore());
+			
+			ICSVTopic<Path> topic = topicCreator.createRefTopic(discovery);
+			source.addTopic(topic);
+			
+			List<IColumnCalculator<ILineReader>> calculatedColumns = new ArrayList<IColumnCalculator<ILineReader>>();
+			for(int c = 0; c < discovery.getColumnCount(); c++) {
+				String columnName = discovery.getColumnName(c);
+				String columnType = discovery.getColumnType(c);
+				
+				// When a date field is detected, we automatically
+				// calculate the YEAR, MONTH and DAY fields.
+				if(columnType.startsWith("DATE")) {
+					calculatedColumns.add(new DateYearCalculator(columnName, columnName + ".YEAR"));
+					calculatedColumns.add(new DateMonthCalculator(columnName, columnName + ".MONTH"));
+					calculatedColumns.add(new DateDayCalculator(columnName, columnName + ".DAY"));
+				}
+				
+			};
+			channelFactory.setCalculatedColumns(discovery.getFileNameWithoutExtension(), calculatedColumns);
+		
+			// Create Listener to have an effective filewatching
+			final ITuplePublisher<IFileInfo<Path>> publisher 
+							= new AutoCommitTuplePublisher<>(new TuplePublisher<>(datastoreConfig.datastore(), 
+															 discovery.getFileNameWithoutExtension()));
+			IStoreMessageChannel<IFileInfo<Path>, ILineReader> channel
+							= channelFactory.createChannel(discovery.getFileNameWithoutExtension(),
+														   discovery.getFileNameWithoutExtension(),
+														   publisher);
+			source.listen(channel);
+		}
+	}
+
+	private void LoadData(ICSVSource<Path> source) {
 		AutoPivotDiscoveryCreator discoveryCreator = discoverCreator();
 		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator, env);
 		ICSVTopic<Path> topic = topicCreator.createTopic(AutoPivotGenerator.BASE_STORE);
@@ -136,20 +194,14 @@ public class SourceConfig {
 		};
 		channelFactory.setCalculatedColumns(AutoPivotGenerator.BASE_STORE, calculatedColumns);
 		
-		
 		// Create Listener to have an effective filewatching
 		final ITuplePublisher<IFileInfo<Path>> publisher 
 						= new AutoCommitTuplePublisher<>(new TuplePublisher<>(datastoreConfig.datastore(), 
-														 AutoPivotGenerator.BASE_STORE));
+														 					  AutoPivotGenerator.BASE_STORE));
 		IStoreMessageChannel<IFileInfo<Path>, ILineReader> channel
 						= channelFactory.createChannel(AutoPivotGenerator.BASE_STORE,
 													   AutoPivotGenerator.BASE_STORE,
 													   publisher);
 		source.listen(channel);
-		
-		LOGGER.info("AutoPivot initial loading complete.");
-		
-		return null; // Void
-	}
-	
+	}	
 }

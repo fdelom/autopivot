@@ -20,12 +20,14 @@ package com.av.autopivot.config.datastore;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotGenerator;
+import com.av.autopivot.AutoPivotRefDataGenerator;
 import com.av.autopivot.config.source.SourceConfig;
 import com.av.csv.CSVFormat;
 import com.qfs.desc.IDatastoreSchemaDescription;
@@ -63,6 +65,17 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 		return new AutoPivotGenerator();
 	}
 	
+	/**
+	 * 
+	 * Generator of store and cube descriptions.
+	 * 
+	 * @return ActivePivot Reference Data generator
+	 */
+	@Bean
+	public AutoPivotRefDataGenerator generatorRefData() {
+		return new AutoPivotRefDataGenerator();
+	}
+	
 	/** @return the references between stores */
 	public Collection<IReferenceDescription> references() {
 		final Collection<IReferenceDescription> references = new LinkedList<>();
@@ -82,13 +95,28 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 	 * @return schema description
 	 */
 	@Bean
-	public IDatastoreSchemaDescription schemaDescription() {
+	public IDatastoreSchemaDescription schemaDescription() {	
+		final Collection<IStoreDescription> stores = new LinkedList<>();
+		stores.add(generateFromData());
+		stores.addAll(generateFromRefDate());
+		return new DatastoreSchemaDescription(stores, references());
+	}
+	
+	private IStoreDescription generateFromData() {
 		CSVFormat discovery = sourceConfig.discoverCreator().createDiscoveryFormat();
 		AutoPivotGenerator generator = generator();
+		return generator.createStoreDescription(discovery, env);
+	}
+	
+	private Collection<IStoreDescription> generateFromRefDate() {
+		List<CSVFormat> discoveryList = sourceConfig.discoverCreator().createDiscoveryRefFormat();
+		AutoPivotRefDataGenerator generator = generatorRefData();
 		
-		final Collection<IStoreDescription> stores = new LinkedList<>();
-		stores.add(generator.createStoreDescription(discovery, env));
-		return new DatastoreSchemaDescription(stores, references());
+		final Collection<IStoreDescription> stores = new LinkedList<>();	
+		for (CSVFormat csvFormat : discoveryList) {
+			stores.add(generator.createStoreDescription(csvFormat.getFileNameWithoutExtension(), csvFormat, env));
+		}
+		return stores;		
 	}
 
 }

@@ -3,6 +3,7 @@ package com.av.autopivot.config.source;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotDiscoveryCreator;
@@ -46,8 +47,9 @@ public class AutoPivotTopicCreator {
 			CSVParserConfiguration cfg = createParserConfiguration(discovery);
 			
 			// Load files with watcher activated
+			IWatcherService watcherService = watcherService();
 			topic = new DirectoryCSVTopic(topicName, cfg, autoPivotDiscoveryCreator.getDirectoryPathToWatch(), 
-										  FileSystems.getDefault().getPathMatcher(pathMatcherConf), 500);
+										  FileSystems.getDefault().getPathMatcher(pathMatcherConf), watcherService);
 		}
 		else {
 			String fileNameField = env.getRequiredProperty("fileName");
@@ -56,12 +58,12 @@ public class AutoPivotTopicCreator {
 			CSVParserConfiguration cfg = createParserConfiguration(discovery);
 			
 			// Load only the target file
-			IWatcherService watcherService = new WatcherService();
+			IWatcherService watcherService = watcherService();
 			topic = new SingleFileCSVTopic(topicName, cfg, fileNameField, watcherService);
 		}
 		return topic;
 	}
-
+	
 	/**
 	 * Create the CSV parser configuration
 	 * 
@@ -76,5 +78,23 @@ public class AutoPivotTopicCreator {
 																CSVParserConfiguration.toMap(discovery.getColumnNames()));
 		cfg.setProcessQuotes(false);
 		return cfg;
+	}
+
+	public ICSVTopic<Path> createRefTopic(CSVFormat discovery) {
+		ICSVTopic<Path> topic = null;
+		
+		// Create parser configuration
+		CSVParserConfiguration cfg = createParserConfiguration(discovery);
+		
+		// Load only the target file
+		IWatcherService watcherService = watcherService();
+		topic = new SingleFileCSVTopic(discovery.getFileNameWithoutExtension(), cfg, discovery.getFileName(), watcherService);
+		
+		return topic;
+	}
+	
+	@Bean
+	IWatcherService watcherService() {
+		return new WatcherService();
 	}
 }

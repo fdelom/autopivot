@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
@@ -174,6 +175,61 @@ public class AutoPivotDiscoveryCreator {
 			throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
 											  getPathMatcher(), directory.toString(), ex);
 		}
+	}
+
+	public List<CSVFormat> createDiscoveryRefFormat() {
+		ArrayList<CSVFormat> discoveryList = null;
+		discoveryList = discoverRefDir(getDirectoryRefPathToWatch());
+		return discoveryList;
+	}
+	
+	private ArrayList<CSVFormat> discoverRefDir(Path directory) {
+		ArrayList<CSVFormat> discoveryList = new ArrayList<>();
+		
+		final PathMatcher pattern = FileSystems.getDefault().getPathMatcher(getRefPathMatcher());
+		FileVisitor<Path> matcherVisitor = new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attribs) {
+				Path name = file.getFileName();
+				
+				if (pattern.matches(name)) {
+					CSVFormat discovery;
+					try {
+						discovery = new CSVDiscovery().discoverFile(directory.toString() + "\\" + name.toString(), getCharset());
+					} catch (IOException ex) {
+						throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
+								  						  getRefPathMatcher(), directory.toString(), ex);
+					}
+					discoveryList.add(discovery);
+				}
+				return FileVisitResult.CONTINUE;
+			}
+		};
+		
+		try {
+			Files.walkFileTree(directory, matcherVisitor);
+			return discoveryList;
+		}
+		catch (Exception ex) {
+			throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
+											  getRefPathMatcher(), directory.toString(), ex);
+		}
+	}
+
+	public String getRefPathMatcher() {
+		return env.getProperty("filewatcher.refPathMatcher", DEFAULT_MATCHER);
+	}
+
+	public Path getDirectoryRefPathToWatch() {
+		String fwDirField = env.getRequiredProperty("filewatcher.refdir");
+		
+		Path directory;
+		try {
+			directory = getDirPath(fwDirField);
+		} catch (IOException ex) {
+			throw new QuartetRuntimeException("Could not discover this directory: {}", fwDirField);
+		}
+		return directory;
 	}
 	
 }

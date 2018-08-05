@@ -29,6 +29,8 @@ import java.util.logging.Logger;
 import org.springframework.core.env.Environment;
 
 import com.av.csv.CSVFormat;
+import com.av.pivot.aggregation.SumOrStringAggregateFunction;
+import com.av.pivot.postprocessing.FXPostProcessor;
 import com.qfs.desc.IFieldDescription;
 import com.qfs.desc.IOptimizationDescription;
 import com.qfs.desc.IOptimizationDescription.Optimization;
@@ -76,6 +78,7 @@ import com.quartetfs.biz.pivot.definitions.impl.MeasuresDescription;
 import com.quartetfs.biz.pivot.definitions.impl.NativeMeasureDescription;
 import com.quartetfs.biz.pivot.definitions.impl.PostProcessorDescription;
 import com.quartetfs.biz.pivot.definitions.impl.SelectionDescription;
+import com.quartetfs.biz.pivot.postprocessing.impl.ADynamicAggregationPostProcessor;
 
 /**
  * 
@@ -353,6 +356,8 @@ public class AutoPivotGenerator {
 			}
 		}
 
+		// Add Custom PostProcessors
+		addCustomPostProcessors(format, postProcessors, measures);
 
 		// Add distinct count calculation for each level field
 		for(int f = 0; f < format.getColumnCount(); f++) {
@@ -399,6 +404,25 @@ public class AutoPivotGenerator {
 		return desc;
 	}
 	
+	private void addCustomPostProcessors(CSVFormat format, List<IPostProcessorDescription> postProcessors, List<IAggregatedMeasureDescription> measures) {
+		// SumOrString Aggreated Measure
+		AggregatedMeasureDescription sumOrString = new AggregatedMeasureDescription("pnl", SumOrStringAggregateFunction.PLUGIN_KEY);
+		sumOrString.setFolder("CustomPP");
+		sumOrString.setFormatter(DOUBLE_FORMAT);
+		measures.add(sumOrString);
+		
+		// FXPostProcessor
+		Properties props = new Properties();
+		props.setProperty(ADynamicAggregationPostProcessor.LEAF_LEVELS, "Currency@Currency@Currency");
+		props.setProperty(ADynamicAggregationPostProcessor.AGGREGATION_FUNCTION, SumOrStringAggregateFunction.PLUGIN_KEY);
+		PostProcessorDescription fxPP = new PostProcessorDescription("FxMeasure", FXPostProcessor.PLUGIN_KEY, props);
+		fxPP.setFolder("CustomPP");
+		fxPP.setFormatter(DOUBLE_FORMAT);
+		fxPP.setUnderlyingMeasures("pnl.SUM");
+		postProcessors.add(fxPP);
+	}
+
+
 	/**
 	 * 
 	 * @param storeDesc
