@@ -62,6 +62,7 @@ public class CSVFormat {
 	public String getSeparator() { return separator; }
 	
 	public List<String> getColumnNames() { return columnNames; }
+	public List<String> getColumnTypes() { return columnTypes; }
 	
 	public int getColumnCount() { return columnNames.size(); }
 	
@@ -71,6 +72,5 @@ public class CSVFormat {
 	
 	public String getColumnType(int columnIndex) {
 		return columnTypes.get(columnIndex);
-	}
-	
+	}	
 }

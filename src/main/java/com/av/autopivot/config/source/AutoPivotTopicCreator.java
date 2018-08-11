@@ -4,10 +4,11 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
 
 import com.av.autopivot.AutoPivotDiscoveryCreator;
+import com.av.autopivot.config.properties.AutoPivotProperties.DataInfo;
 import com.av.csv.CSVFormat;
+import com.google.common.base.Strings;
 import com.qfs.msg.IWatcherService;
 import com.qfs.msg.csv.ICSVTopic;
 import com.qfs.msg.csv.filesystem.impl.DirectoryCSVTopic;
@@ -21,45 +22,37 @@ public class AutoPivotTopicCreator {
 	/** Logger **/
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotTopicCreator.class);
 	
-	/** Spring environment, automatically wired */
-	protected Environment env;
-	
 	private AutoPivotDiscoveryCreator autoPivotDiscoveryCreator = null;
 	
-	public AutoPivotTopicCreator(AutoPivotDiscoveryCreator autoPivotDiscoveryCreator, Environment env) {
+	public AutoPivotTopicCreator(AutoPivotDiscoveryCreator autoPivotDiscoveryCreator) {
 		this.autoPivotDiscoveryCreator = autoPivotDiscoveryCreator;
-		this.env = env;
 	}
 	
-	public ICSVTopic<Path> createTopic(String topicName) {
+	public ICSVTopic<Path> createTopic(CSVFormat discovery, String storeName, DataInfo dataInfo) {
 		ICSVTopic<Path> topic = null;
 		
-		CSVFormat discovery = autoPivotDiscoveryCreator.createDiscoveryFormat();
 		if (discovery == null) {
 			throw new QuartetRuntimeException("Failed to initialize CSV Format");
 		}
 		
-		Boolean bFwActivated = env.getProperty("filewatcher.activated", Boolean.class, false);
-		if (bFwActivated.equals(true)) {
-			String pathMatcherConf = autoPivotDiscoveryCreator.getPathMatcher();
-			
+		if (Strings.isNullOrEmpty(dataInfo.getDirToWatch()) == false) {			
 			// Create parser Configuration
 			CSVParserConfiguration cfg = createParserConfiguration(discovery);
 			
 			// Load files with watcher activated
 			IWatcherService watcherService = watcherService();
-			topic = new DirectoryCSVTopic(topicName, cfg, autoPivotDiscoveryCreator.getDirectoryPathToWatch(), 
-										  FileSystems.getDefault().getPathMatcher(pathMatcherConf), watcherService);
+			topic = new DirectoryCSVTopic(storeName, cfg, autoPivotDiscoveryCreator.getDirectoryPathToWatch(dataInfo), 
+										  FileSystems.getDefault().getPathMatcher(dataInfo.getPathMatcher()), watcherService);
 		}
 		else {
-			String fileNameField = env.getRequiredProperty("fileName");
+			String fileNameField = dataInfo.getFileName();
 			
 			// Create parser configuration
 			CSVParserConfiguration cfg = createParserConfiguration(discovery);
 			
 			// Load only the target file
 			IWatcherService watcherService = watcherService();
-			topic = new SingleFileCSVTopic(topicName, cfg, fileNameField, watcherService);
+			topic = new SingleFileCSVTopic(storeName, cfg, fileNameField, watcherService);
 		}
 		return topic;
 	}
@@ -76,7 +69,7 @@ public class AutoPivotTopicCreator {
 																discovery.getColumnCount(),
 																true, 1,
 																CSVParserConfiguration.toMap(discovery.getColumnNames()));
-		cfg.setProcessQuotes(false);
+		cfg.setProcessQuotes(true);
 		return cfg;
 	}
 

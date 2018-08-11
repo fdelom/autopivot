@@ -22,15 +22,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import org.springframework.core.env.Environment;
-
-import com.av.csv.CSVFormat;
-import com.av.pivot.aggregation.SumOrStringAggregateFunction;
-import com.av.pivot.postprocessing.FXPostProcessor;
 import com.qfs.desc.IFieldDescription;
 import com.qfs.desc.IOptimizationDescription;
 import com.qfs.desc.IOptimizationDescription.Optimization;
@@ -56,9 +53,11 @@ import com.quartetfs.biz.pivot.definitions.IActivePivotSchemaInstanceDescription
 import com.quartetfs.biz.pivot.definitions.IAggregateProviderDefinition;
 import com.quartetfs.biz.pivot.definitions.IAggregatedMeasureDescription;
 import com.quartetfs.biz.pivot.definitions.IAggregatesCacheDescription;
+import com.quartetfs.biz.pivot.definitions.IAxisDimensionDescription;
 import com.quartetfs.biz.pivot.definitions.IAxisHierarchyDescription;
 import com.quartetfs.biz.pivot.definitions.IAxisLevelDescription;
 import com.quartetfs.biz.pivot.definitions.ICatalogDescription;
+import com.quartetfs.biz.pivot.definitions.IMeasuresDescription;
 import com.quartetfs.biz.pivot.definitions.INativeMeasureDescription;
 import com.quartetfs.biz.pivot.definitions.IPostProcessorDescription;
 import com.quartetfs.biz.pivot.definitions.impl.ActivePivotDescription;
@@ -78,27 +77,24 @@ import com.quartetfs.biz.pivot.definitions.impl.MeasuresDescription;
 import com.quartetfs.biz.pivot.definitions.impl.NativeMeasureDescription;
 import com.quartetfs.biz.pivot.definitions.impl.PostProcessorDescription;
 import com.quartetfs.biz.pivot.definitions.impl.SelectionDescription;
-import com.quartetfs.biz.pivot.postprocessing.impl.ADynamicAggregationPostProcessor;
+import com.quartetfs.fwk.Registry;
+import com.quartetfs.fwk.contributions.impl.ClasspathContributionProvider;
 
 /**
  * 
  * Describe the components of an ActivePivot application
  * automatically based on the input data format.
  * 
- * @author ActiveViam
- *
  */
 public class AutoPivotGenerator {
-
 	/** Logger **/
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotGenerator.class.getName());
 	
-	/** Default name of the base store */
-	public static final String BASE_STORE = "DATA";
-
-	/** Default name of the base pivot */
-	public static final String PIVOT = "AUTOPIVOT";
-
+	/** Reference Packages */
+	private final static String ACTIVEVIAM_PACKAGE = "com.activeviam";
+	private final static String QUARTETFS_PACKAGE = "com.quartetfs";
+	private final static String QFS_PACKAGE = "com.qfs";
+	
 	/** Default format for double measures */
 	public static final String DOUBLE_FORMAT = "DOUBLE[#,###.00;-#,###.00]";
 	
@@ -110,22 +106,95 @@ public class AutoPivotGenerator {
 	
 	/** Default format for time levels */
 	public static final String TIME_FORMAT = "DATE[HH:mm:ss]";	
+	
+	private static final Set<String> NUMERICS = QfsArrays.mutableSet("double", "float", "int", "long");
+	private static final Set<String> INTEGERS = QfsArrays.mutableSet("int", "long");
+	private static final Set<String> DECIMALS = QfsArrays.mutableSet("double", "float");
+	private static final Set<String> NUMERICS_ONLY = QfsArrays.mutableSet("double", "float", "long");
+	
+	/** Active Pivot Manager descriptions */
+	private IActivePivotManagerDescription activePivotManagerDescription = null;
+	
+	/** Active Pivot descriptions Map */
+	private Map<String, IActivePivotDescription> activePivotDescriptionMap = null;
+	
+	public enum AGGREGATE_PROVIDER_TYPE {
+		JUST_IN_TIME,
+		BITMAP
+	}
+	
+	public static void initRegistry(List<String> packageList) {
+		List<String> consolidatedPackageList = new ArrayList<>();
+		
+		consolidatedPackageList.add(ACTIVEVIAM_PACKAGE);
+		consolidatedPackageList.add(QUARTETFS_PACKAGE);
+		consolidatedPackageList.add(QFS_PACKAGE);
+		
+		consolidatedPackageList.addAll(packageList);
+		
+		String[] packageArray = consolidatedPackageList.toArray(new String[0]);
+		Registry.setContributionProvider(new ClasspathContributionProvider(packageArray));
+	}
+	
+	/**
+	 * 
+	 * Generate a complete ActivePivot Manager description, with one new catalog,
+	 * one new schema and one new cube, based on the provided input data format.
+	 * 
+	 * @param storeDesc input data format
+	 */
+	public void createCube(StoreInfo storeDesc) {
+		ICatalogDescription catalog = new CatalogDescription(storeDesc.getStoreName() + "_CATALOG", Arrays.asList(storeDesc.getStoreName()));
+		IActivePivotSchemaDescription schema = createActivePivotSchemaDescription(storeDesc);
+		IActivePivotSchemaInstanceDescription instance = new ActivePivotSchemaInstanceDescription(storeDesc.getStoreName() + "_SCHEMA", schema);
+		
+		getCatalogs().add(catalog);
+		getSchemas().add(instance);
+	}
+	
+	private IActivePivotSchemaDescription createActivePivotSchemaDescription(StoreInfo storeDesc) {
+		ActivePivotSchemaDescription desc = new ActivePivotSchemaDescription();
 
+		// Datastore selection
+		List<ISelectionField> fields = new ArrayList<>();
+		for(int f = 0; f < storeDesc.getColumnCount(); f++) {
+			String fieldName = storeDesc.getColumnName(f);
+			String fieldType = storeDesc.getColumnType(f);
+			fields.add(new SelectionField(fieldName));
+			
+			if(fieldType.startsWith("DATE")) {
+				fields.add(new SelectionField(fieldName + ".YEAR"));
+				fields.add(new SelectionField(fieldName + ".MONTH"));
+				fields.add(new SelectionField(fieldName + ".DAY"));
+			}
+		}
+		SelectionDescription selection = new SelectionDescription(storeDesc.getStoreName(), fields);
+		
+		// ActivePivot instance
+		IActivePivotDescription pivot = createActivePivotDescription(storeDesc, 
+																	 AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME);
+		IActivePivotInstanceDescription instance = new ActivePivotInstanceDescription(storeDesc.getStoreName(), pivot);
+		
+		desc.setDatastoreSelection(selection);
+		desc.setActivePivotInstanceDescriptions(Collections.singletonList(instance));
+		
+		return desc;
+	}
+	
 	/**
 	 * 
 	 * Generate a store description based on the discovery of the input data.
 	 * 
-	 * @param format
+	 * @param storeDesc input data format
 	 * @return store description
 	 */
-	public IStoreDescription createStoreDescription(CSVFormat format, Environment env) {
-
+	public IStoreDescription createStoreDescription(StoreInfo storeDesc) {
 		List<IFieldDescription> fields = new ArrayList<>();
 		List<IOptimizationDescription> optimizations = new ArrayList<>();
-
-		for(int c = 0; c < format.getColumnCount(); c++) {
-			String columnName = format.getColumnName(c);
-			String columnType = format.getColumnType(c);
+		
+		for(int c = 0; c < storeDesc.getColumnCount(); c++) {
+			String columnName = storeDesc.getColumnName(c);
+			String columnType = storeDesc.getColumnType(c);
 			FieldDescription desc = new FieldDescription(columnName, columnType);
 
 			// For date fields automatically add YEAR - MONTH - DAY fields
@@ -154,21 +223,19 @@ public class AutoPivotGenerator {
 		}
 
 		// Partitioning
-		IPartitioningDescription partitioning = createPartitioningDescription(format, env);
+		IPartitioningDescription partitioning = createPartitioningDescription(storeDesc);
 		
 		@SuppressWarnings("unchecked")
-		StoreDescription desc = new StoreDescription(
-				BASE_STORE,
-				Collections.EMPTY_LIST,
-				fields,
-				"COLUMN",
-				partitioning,
-				optimizations,
-				false);
+		StoreDescription desc = new StoreDescription(storeDesc.getStoreName(),
+													 Collections.EMPTY_LIST,
+													 fields,
+													 "COLUMN",
+													 partitioning,
+													 optimizations,
+													 false);
 
 		return desc;
 	}
-	
 	
 	/**
 	 * 
@@ -177,84 +244,279 @@ public class AutoPivotGenerator {
 	 * field, and the number of partitions is half the number
 	 * of cores.
 	 * 
-	 * @param format
+	 * @param storeDesc input data format
 	 * @return partitioning description
 	 */
-	public IPartitioningDescription createPartitioningDescription(CSVFormat format, Environment env) {
-		
+	public IPartitioningDescription createPartitioningDescription(StoreInfo storeDesc) {
 		int processorCount = IPlatform.CURRENT_PLATFORM.getProcessorCount();
 		int partitionCount = processorCount/2;
+		
 		if(partitionCount > 1) {
-
-			String partitioningField = env.getProperty("datastore.partitioningField");
-			if(partitioningField != null) {
-				
-				for(int c = 0; c < format.getColumnCount(); c++) {
-					String fieldName = format.getColumnName(c);
+			if (storeDesc.hasPartitionField()) {	
+				String partitioningField = storeDesc.getPartitionField();
+				for(int c = 0; c < storeDesc.getColumnCount(); c++) {
+					String fieldName = storeDesc.getColumnName(c);
 					if(fieldName.equalsIgnoreCase(partitioningField)) {
 						return new PartitioningDescriptionBuilder()
 						.addSubPartitioning(fieldName, new ModuloFunctionDescription(partitionCount))
 						.build();
 					}
 				}
-				
 				LOGGER.warning("Configured partitioning field '" + partitioningField + "' does not exist in input file format. Default partitioning will be used.");
-				
 			}
 			
 			// Default partitioning, partition on the first field
-			// that is not numerical
-				
-			for(int c = 0; c < format.getColumnCount(); c++) {
-				String fieldName = format.getColumnName(c);
-				String fieldType = format.getColumnType(c);
+			// that is not numerical	
+			for(int c = 0; c < storeDesc.getColumnCount(); c++) {
+				String fieldName = storeDesc.getColumnName(c);
+				String fieldType = storeDesc.getColumnType(c);
 					
-				if(!"float".equalsIgnoreCase(fieldType) && !"double".equalsIgnoreCase(fieldType) && !"long".equalsIgnoreCase(fieldType)) {
+				if(!"float".equalsIgnoreCase(fieldType) && 
+				   !"double".equalsIgnoreCase(fieldType) && 
+				   !"long".equalsIgnoreCase(fieldType)) {
 					LOGGER.info("Applying default partitioning policy: " + partitionCount + " partitions with partitioning field '" + fieldName + "'");
 					return new PartitioningDescriptionBuilder()
-					.addSubPartitioning(fieldName, new ModuloFunctionDescription(partitionCount))
-					.build();
+											.addSubPartitioning(fieldName, new ModuloFunctionDescription(partitionCount))
+											.build();
 				}
 			}
 			
 		}
-		
 		return null;
 	}
-	
-	
 	
 	/**
 	 * 
 	 * Create the description of an ActivePivot cube automatically,
 	 * based on the description of the input dataset.
 	 * 
-	 * @param format
+	 * @param storeDesc input data format
 	 * @return AcivePivot description
 	 */
-	public IActivePivotDescription createActivePivotDescription(CSVFormat format, Environment env) {
+	public IActivePivotDescription createActivePivotDescription(StoreInfo storeDesc,
+																AGGREGATE_PROVIDER_TYPE aggregateProviderType) {
 		
-		ActivePivotDescription desc = new ActivePivotDescription();
+		IActivePivotDescription activePivotDescription = getActivePivotDescription(storeDesc.getStoreName());
 		
-		
-		IAggregateProviderDefinition apd = new AggregateProviderDefinition("JUST_IN_TIME");
-		desc.setAggregateProvider(apd);
+		IAggregateProviderDefinition apd = new AggregateProviderDefinition(aggregateProviderType.name());
+		activePivotDescription.setAggregateProvider(apd);
 		
 		// Hierarchies and dimensions
-		AxisDimensionsDescription dimensions = new AxisDimensionsDescription();
+		createHierarchiesAndDimensions(storeDesc);
 		
-		Set<String> numerics = QfsArrays.mutableSet("double", "float", "int", "long");
-		Set<String> integers = QfsArrays.mutableSet("int", "long");
-		Set<String> decimals = QfsArrays.mutableSet("double", "float");
-		Set<String> numericsOnly = QfsArrays.mutableSet("double", "float", "long");
+		// Measures
+		createMeasures(storeDesc);
+		
+		// Native measures
+		createNativeMeasures(storeDesc.getStoreName());
 
-		for(int f = 0; f < format.getColumnCount(); f++) {
-			String fieldName = format.getColumnName(f);
-			String fieldType = format.getColumnType(f);
+		// Add distinct count calculation for each level field
+		addDistinctCountPP(storeDesc);
+
+		// Aggregate cache configuration
+		initActivePivotCache(storeDesc.getStoreName(), storeDesc.getCacheSize());
+		
+		return activePivotDescription;
+	}
+
+	/**
+	 * Set up Active Pivot Aggregate cache with the provided size. If size is null, nothing is done.
+	 * 
+	 * @param pivotCacheSize cache size
+	 */
+	private void initActivePivotCache(String storeName, Integer pivotCacheSize) {
+		if(pivotCacheSize != null) {
+			LOGGER.info("Configuring aggregate cache of size " + pivotCacheSize);
+			IAggregatesCacheDescription cacheDescription = new AggregatesCacheDescription();
+			cacheDescription.setSize(pivotCacheSize);
+			getActivePivotDescription(storeName).setAggregatesCacheDescription(cacheDescription);
+		}
+	}
+
+	/**
+	 * Add a distinct count post processor to all numerics measures
+	 * 
+	 * @param storeDesc input data format
+	 */
+	private void addDistinctCountPP(StoreInfo storeDesc) {
+		for(int f = 0; f < storeDesc.getColumnCount(); f++) {
+			String fieldName = storeDesc.getColumnName(f);
+			String fieldType = storeDesc.getColumnType(f);
+
+			if(!NUMERICS_ONLY.contains(fieldType)) {
+				IPostProcessorDescription dc = new PostProcessorDescription(fieldName + ".COUNT", "LEAF_COUNT", new Properties());
+				String leafExpression = fieldName + "@" + fieldName;
+				dc.getProperties().setProperty("leafLevels", leafExpression);
+				dc.setFolder("Distinct Count");
+				getPostProcessorsDescription(storeDesc.getStoreName()).add(dc);
+			}
+		}
+	}
+
+	/**
+	 * Create native measures to the cube ([measureName].Count & [measureName].TIMESTAMP)
+	 */
+	private void createNativeMeasures(String storeName) {
+		// Configure "count" native measure
+		INativeMeasureDescription countMeasure = new NativeMeasureDescription(IMeasureHierarchy.COUNT_ID, "Count");
+		countMeasure.setFormatter(INTEGER_FORMAT);
+		
+		// Hide the last update measure that does not work Just In Time
+		INativeMeasureDescription lastUpdateMeasure = new NativeMeasureDescription(IMeasureHierarchy.TIMESTAMP_ID);
+		lastUpdateMeasure.setVisible(false);
+		
+		getNativeMeasureDescription(storeName).add(countMeasure);
+		getNativeMeasureDescription(storeName).add(lastUpdateMeasure);		
+	}
+
+	/**
+	 * Create measures based on StoreInfo provided.
+	 * 
+	 * @param storeDesc input data format
+	 */
+	private void createMeasures(StoreInfo storeDesc) {
+		for(int f = 0; f < storeDesc.getColumnCount(); f++) {
+			String fieldName = storeDesc.getColumnName(f);
+			String fieldType = storeDesc.getColumnType(f);
+			if(NUMERICS.contains(fieldType) && 
+			   !fieldName.endsWith("id") && 
+			   !fieldName.endsWith("ID")) {
+				String storeName = storeDesc.getStoreName();
+				addSumMeasure(storeName, fieldName, fieldType);
+				addMinMeasure(storeName, fieldName, fieldType);
+				addMaxMeasure(storeName, fieldName, fieldType);
+				addAvgMeasure(storeName, fieldName, fieldType);
+				addStdAndSqrtMeasure(storeName, fieldName, fieldType);
+			}
+		}
+	}
+
+	/**
+	 * Add standard deviation and square measures to the cube description only if the measure type 
+	 * provided is a decimals
+	 * 
+	 * @param measureName to be added to the cube ([measureName].std & [measureName].SQ_SUM)
+	 * @param measureType type of the measure
+	 */
+	private void addStdAndSqrtMeasure(String storeName, String measureName, String measureType) {
+		if (DECIMALS.contains(measureType)) {
+			IAggregatedMeasureDescription sq_sum = new AggregatedMeasureDescription(measureName, "SQ_SUM");
+			sq_sum.setVisible(false);
 			
+			// Shared formula expressions
+			String countExpression = "aggregatedValue[contributors.COUNT]";
+			String squareSumExpression = "aggregatedValue[" + measureName + ".SQ_SUM]";
+			String avgExpression = "aggregatedValue[" + measureName + ".avg]";
+			
+			// Define a formula post processor to compute the standard deviation
+			IPostProcessorDescription std = new PostProcessorDescription(measureName + ".STD", "FORMULA", new Properties());
+			String stdFormula = "(" + squareSumExpression + ", " + countExpression + ", /)";
+			stdFormula += ", (" + avgExpression + ", " + avgExpression + ", *), -, SQRT";
+			std.getProperties().setProperty("formula", stdFormula);
 
-			if(!numericsOnly.contains(fieldType)) {
-				AxisDimensionDescription dimension = new AxisDimensionDescription(fieldName);
+			// Put the measures for that field in one folder
+			sq_sum.setFolder(measureName);
+			std.setFolder(measureName);
+			
+			// Setup measure formatters
+			sq_sum.setFormatter(INTEGERS.contains(measureType) ? INTEGER_FORMAT : DOUBLE_FORMAT);
+			std.setFormatter(DOUBLE_FORMAT);
+			
+			// Add standard deviation only for floating point inputs
+			getAggregatedMeasuresDescription(storeName).add(sq_sum);
+			getPostProcessorsDescription(storeName).add(std);
+		}
+	}
+
+	/**
+	 * Add average measure to the cube description only if the measure type provided is a numerics
+	 * 
+	 * @param measureName to be added to the cube ([measureName].avg)
+	 * @param measureType type of the measure
+	 */
+	private void addAvgMeasure(String storeName, String measureName, String measureType) {
+		if(NUMERICS.contains(measureType)) {
+			// Shared formula expressions
+			String countExpression = "aggregatedValue[contributors.COUNT]";
+			String sumExpression = "aggregatedValue[" + measureName + ".SUM]";
+			
+			// Define a formula post processor to compute the average
+			PostProcessorDescription avg = new PostProcessorDescription(measureName + ".avg", "FORMULA", new Properties());
+			String formula = sumExpression + ", " + countExpression + ", /";
+			avg.getProperties().setProperty("formula", formula);
+			
+			avg.setFolder(measureName);
+			avg.setFormatter(DOUBLE_FORMAT);
+			
+			getPostProcessorsDescription(storeName).add(avg);
+		}
+	}
+
+	/**
+	 * Add max measure to the cube description only if the measure type provided is a numerics
+	 * 
+	 * @param measureName to be added to the cube ([measureName].MAX)
+	 * @param measureType type of the measure
+	 */
+	private void addMaxMeasure(String storeName, String measureName, String measureType) {
+		if(NUMERICS.contains(measureType)) {
+			IAggregatedMeasureDescription max = new AggregatedMeasureDescription(measureName, "max");
+			
+			max.setFolder(measureName);
+			max.setFormatter(INTEGERS.contains(measureType) ? INTEGER_FORMAT : DOUBLE_FORMAT);
+			
+			getAggregatedMeasuresDescription(storeName).add(max);
+		}
+	}
+
+	/**
+	 * Add min measure to the cube description only if the measure type provided is a numerics
+	 * 
+	 * @param measureName to be added to the cube ([measureName].MIN)
+	 * @param measureType type of the measure
+	 */
+	private void addMinMeasure(String storeName, String measureName, String measureType) {
+		if(NUMERICS.contains(measureType)) {
+			IAggregatedMeasureDescription min = new AggregatedMeasureDescription(measureName, "min");
+			
+			min.setFolder(measureName);
+			min.setFormatter(INTEGERS.contains(measureType) ? INTEGER_FORMAT : DOUBLE_FORMAT);
+			
+			getAggregatedMeasuresDescription(storeName).add(min);
+		}
+	}
+
+	/**
+	 * Add sum measure to the cube description only if the measure type provided is a numerics
+	 * 
+	 * @param measureName to be added to the cube ([measureName].SUM)
+	 * @param measureType type of the measure
+	 */
+	private void addSumMeasure(String storeName, String measureName, String measureType) {
+		if(NUMERICS.contains(measureType)) {
+			IAggregatedMeasureDescription sum = new AggregatedMeasureDescription(measureName, "SUM");
+			
+			sum.setFolder(measureName);
+			sum.setFormatter(INTEGERS.contains(measureType) ? INTEGER_FORMAT : DOUBLE_FORMAT);
+			
+			getAggregatedMeasuresDescription(storeName).add(sum);
+		}
+	}
+
+	/**
+	 * Create Hierarchies and Dimension based on StoreInfo provided
+	 * 
+	 * @param storeDesc input data format
+	 */
+	private void createHierarchiesAndDimensions(StoreInfo storeDesc) {
+		AxisDimensionsDescription dimensions = new AxisDimensionsDescription();
+
+		for(int f = 0; f < storeDesc.getColumnCount(); f++) {
+			String fieldName = storeDesc.getColumnName(f);
+			String fieldType = storeDesc.getColumnType(f);
+
+			if(!NUMERICS_ONLY.contains(fieldType)) {
+				IAxisDimensionDescription dimension = new AxisDimensionDescription(fieldName);
 				IAxisHierarchyDescription h = new AxisHierarchyDescription(fieldName);
 				IAxisLevelDescription l = new AxisLevelDescription(fieldName);
 				h.getLevels().add(l);
@@ -286,195 +548,108 @@ public class AutoPivotGenerator {
 				}
 			}
 		}
+		getActivePivotDescription(storeDesc.getStoreName()).setAxisDimensions(dimensions);
+	}
 
-		desc.setAxisDimensions(dimensions);
-		
-		
-		// Measures
-		MeasuresDescription measureDesc = new MeasuresDescription();
-		List<IAggregatedMeasureDescription> measures = new ArrayList<>();
-		List<IPostProcessorDescription> postProcessors = new ArrayList<>();
-		
-		for(int f = 0; f < format.getColumnCount(); f++) {
-			String fieldName = format.getColumnName(f);
-			String fieldType = format.getColumnType(f);
-			if(numerics.contains(fieldType) && !fieldName.endsWith("id") && !fieldName.endsWith("ID")) {
-				
-				// For each numerical input value, create aggregations for SUM, min, max
-				AggregatedMeasureDescription sum = new AggregatedMeasureDescription(fieldName, "SUM");
-				AggregatedMeasureDescription min = new AggregatedMeasureDescription(fieldName, "min");
-				AggregatedMeasureDescription max = new AggregatedMeasureDescription(fieldName, "max");
-				AggregatedMeasureDescription sq_sum = new AggregatedMeasureDescription(fieldName, "SQ_SUM");
-				sq_sum.setVisible(false);
-				
-				// Shared formula expressions
-				String sumExpression = "aggregatedValue[" + fieldName + ".SUM]";
-				String squareSumExpression = "aggregatedValue[" + fieldName + ".SQ_SUM]";
-				String countExpression = "aggregatedValue[contributors.COUNT]";
-				String avgExpression = "aggregatedValue[" + fieldName + ".avg]";
-				
-				// Define a formula post processor to compute the average
-				PostProcessorDescription avg = new PostProcessorDescription(fieldName + ".avg", "FORMULA", new Properties());
-				String formula = sumExpression + ", " + countExpression + ", /";
-				avg.getProperties().setProperty("formula", formula);
-				
-				// Define a formula post processor to compute the standard deviation
-				PostProcessorDescription std = new PostProcessorDescription(fieldName + ".STD", "FORMULA", new Properties());
-				String stdFormula = "(" + squareSumExpression + ", " + countExpression + ", /)";
-				stdFormula += ", (" + avgExpression + ", " + avgExpression + ", *), -, SQRT";
-				std.getProperties().setProperty("formula", stdFormula);
-
-				// Put the measures for that field in one folder
-				sum.setFolder(fieldName);
-				sq_sum.setFolder(fieldName);
-				avg.setFolder(fieldName);
-				std.setFolder(fieldName);
-				min.setFolder(fieldName);
-				max.setFolder(fieldName);
-				
-				// Setup measure formatters
-				String formatter = integers.contains(fieldType) ? INTEGER_FORMAT : DOUBLE_FORMAT;
-				sum.setFormatter(formatter);
-				sq_sum.setFormatter(formatter);
-				min.setFormatter(formatter);
-				max.setFormatter(formatter);
-				avg.setFormatter(DOUBLE_FORMAT);
-				std.setFormatter(DOUBLE_FORMAT);
-				
-				measures.add(sum);
-				measures.add(min);
-				measures.add(max);
-				
-				postProcessors.add(avg);
-				
-				// Add standard deviation only for floating point inputs
-				if(decimals.contains(fieldType)) {
-					measures.add(sq_sum);
-					postProcessors.add(std);
+	private IActivePivotDescription getActivePivotDescription(String storeName) {
+		if (activePivotDescriptionMap == null) {
+			synchronized (this) {
+				if (activePivotDescriptionMap == null) {
+					activePivotDescriptionMap = new ConcurrentHashMap<>();
+					activePivotDescriptionMap.put(storeName, new ActivePivotDescription());
 				}
-
 			}
 		}
-
-		// Add Custom PostProcessors
-		addCustomPostProcessors(format, postProcessors, measures);
-
-		// Add distinct count calculation for each level field
-		for(int f = 0; f < format.getColumnCount(); f++) {
-			String fieldName = format.getColumnName(f);
-			String fieldType = format.getColumnType(f);
-
-			if(!numericsOnly.contains(fieldType)) {
-				
-				PostProcessorDescription dc = new PostProcessorDescription(fieldName + ".COUNT", "LEAF_COUNT", new Properties());
-				String leafExpression = fieldName + "@" + fieldName;
-				dc.getProperties().setProperty("leafLevels", leafExpression);
-				dc.setFolder("Distinct Count");
-				postProcessors.add(dc);
+		else {
+			if (activePivotDescriptionMap.containsKey(storeName) == false) {
+				activePivotDescriptionMap.put(storeName, new ActivePivotDescription());
 			}
 		}
-		
-		
-		measureDesc.setAggregatedMeasuresDescription(measures);
-		measureDesc.setPostProcessorsDescription(postProcessors);
-
-		// Configure "count" native measure
-		List<INativeMeasureDescription> nativeMeasures = new ArrayList<>();
-		INativeMeasureDescription countMeasure = new NativeMeasureDescription(IMeasureHierarchy.COUNT_ID, "Count");
-		countMeasure.setFormatter(INTEGER_FORMAT);
-		nativeMeasures.add(countMeasure);
-		
-		// Hide the last update measure that does not work Just In Time
-		INativeMeasureDescription lastUpdateMeasure = new NativeMeasureDescription(IMeasureHierarchy.TIMESTAMP_ID);
-		lastUpdateMeasure.setVisible(false);
-		nativeMeasures.add(lastUpdateMeasure);
-
-		measureDesc.setNativeMeasures(nativeMeasures);
-		desc.setMeasuresDescription(measureDesc);
-
-		// Aggregate cache configuration
-		if(env.containsProperty("pivot.cache.size")) {
-			Integer cacheSize = env.getProperty("pivot.cache.size", Integer.class);
-			LOGGER.info("Configuring aggregate cache of size " + cacheSize);
-			IAggregatesCacheDescription cacheDescription = new AggregatesCacheDescription();
-			cacheDescription.setSize(cacheSize);
-			desc.setAggregatesCacheDescription(cacheDescription);
-		}
-
-		return desc;
+		return activePivotDescriptionMap.get(storeName);
 	}
 	
-	private void addCustomPostProcessors(CSVFormat format, List<IPostProcessorDescription> postProcessors, List<IAggregatedMeasureDescription> measures) {
-		// SumOrString Aggreated Measure
-		AggregatedMeasureDescription sumOrString = new AggregatedMeasureDescription("pnl", SumOrStringAggregateFunction.PLUGIN_KEY);
-		sumOrString.setFolder("CustomPP");
-		sumOrString.setFormatter(DOUBLE_FORMAT);
-		measures.add(sumOrString);
-		
-		// FXPostProcessor
-		Properties props = new Properties();
-		props.setProperty(ADynamicAggregationPostProcessor.LEAF_LEVELS, "Currency@Currency@Currency");
-		props.setProperty(ADynamicAggregationPostProcessor.AGGREGATION_FUNCTION, SumOrStringAggregateFunction.PLUGIN_KEY);
-		PostProcessorDescription fxPP = new PostProcessorDescription("FxMeasure", FXPostProcessor.PLUGIN_KEY, props);
-		fxPP.setFolder("CustomPP");
-		fxPP.setFormatter(DOUBLE_FORMAT);
-		fxPP.setUnderlyingMeasures("pnl.SUM");
-		postProcessors.add(fxPP);
-	}
-
-
-	/**
-	 * 
-	 * @param storeDesc
-	 * @return schema description
-	 */
-	public IActivePivotSchemaDescription createActivePivotSchemaDescription(CSVFormat format, Environment env) {
-		ActivePivotSchemaDescription desc = new ActivePivotSchemaDescription();
-
-		// Datastore selection
-		List<ISelectionField> fields = new ArrayList<>();
-		for(int f = 0; f < format.getColumnCount(); f++) {
-			String fieldName = format.getColumnName(f);
-			String fieldType = format.getColumnType(f);
-			fields.add(new SelectionField(fieldName));
-			
-			if(fieldType.startsWith("DATE")) {
-				fields.add(new SelectionField(fieldName + ".YEAR"));
-				fields.add(new SelectionField(fieldName + ".MONTH"));
-				fields.add(new SelectionField(fieldName + ".DAY"));
+	private List<IAggregatedMeasureDescription> getAggregatedMeasuresDescription(String storeName) {
+		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
+		if (measureDesc.getAggregatedMeasuresDescription() == null) {
+			synchronized (this) {
+				if (measureDesc.getAggregatedMeasuresDescription() == null) {
+					measureDesc.setAggregatedMeasuresDescription(new ArrayList<IAggregatedMeasureDescription>());
+				}
 			}
 		}
-		SelectionDescription selection = new SelectionDescription(BASE_STORE, fields);
-		
-		// ActivePivot instance
-		IActivePivotDescription pivot = createActivePivotDescription(format, env);
-		IActivePivotInstanceDescription instance = new ActivePivotInstanceDescription(PIVOT, pivot);
-		
-		desc.setDatastoreSelection(selection);
-		desc.setActivePivotInstanceDescriptions(Collections.singletonList(instance));
-		
-		return desc;
+		return measureDesc.getAggregatedMeasuresDescription();
 	}
 	
-	
-	/**
-	 * 
-	 * Generate a complete ActivePivot Manager description, with one catalog,
-	 * one schema and one cube, based on the provided input data format.
-	 * 
-	 * @param format input data format
-	 * @return ActivePivot Manager description
-	 */
-	public IActivePivotManagerDescription createActivePivotManagerDescription(CSVFormat format, Environment env) {
-
-		ICatalogDescription catalog = new CatalogDescription(PIVOT + "_CATALOG", Arrays.asList(PIVOT));
-		IActivePivotSchemaDescription schema = createActivePivotSchemaDescription(format, env);
-		IActivePivotSchemaInstanceDescription instance = new ActivePivotSchemaInstanceDescription(PIVOT + "_SCHEMA", schema);
-		
-		ActivePivotManagerDescription desc = new ActivePivotManagerDescription();
-		desc.setCatalogs(Arrays.asList(catalog));
-		desc.setSchemas(Arrays.asList(instance));
-		return desc;
+	private List<IPostProcessorDescription> getPostProcessorsDescription(String storeName) {
+		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
+		if (measureDesc.getPostProcessorsDescription() == null) {
+			synchronized (this) {
+				if (measureDesc.getPostProcessorsDescription() == null) {
+					measureDesc.setPostProcessorsDescription(new ArrayList<IPostProcessorDescription>());
+				}
+			}
+		}
+		return measureDesc.getPostProcessorsDescription();
 	}
-
+	
+	private IMeasuresDescription getMeasuresDescription(String storeName) {
+		IActivePivotDescription activePivotDescription = getActivePivotDescription(storeName);
+		if (activePivotDescription.getMeasuresDescription() == null) {
+			synchronized (this) {
+				if (activePivotDescription.getMeasuresDescription() == null) {
+					activePivotDescription.setMeasuresDescription(new MeasuresDescription());
+				}
+			}
+		}
+		return activePivotDescription.getMeasuresDescription();
+	}
+	
+	private List<INativeMeasureDescription> getNativeMeasureDescription(String storeName) {
+		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
+		if (measureDesc.getNativeMeasures() == null) {
+			synchronized (this) {
+				if (measureDesc.getNativeMeasures() == null) {
+					measureDesc.setNativeMeasures(new ArrayList<INativeMeasureDescription>());
+				}
+			}
+		}
+		return measureDesc.getNativeMeasures();
+	}
+	
+	public IActivePivotManagerDescription getActivePivotManagerDescription() {
+		if (activePivotManagerDescription == null) {
+			synchronized (this) {
+				if (activePivotManagerDescription == null) {
+					activePivotManagerDescription = new ActivePivotManagerDescription();
+				}
+			}
+		}
+		return activePivotManagerDescription;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private List<ICatalogDescription> getCatalogs() {
+		IActivePivotManagerDescription apManagerDesc = getActivePivotManagerDescription();
+		if (apManagerDesc.getCatalogs() == null) {
+			synchronized (this) {
+				if (apManagerDesc.getCatalogs() == null) {
+					apManagerDesc.setCatalogs(new ArrayList<>());
+				}
+			}
+		}
+		return (List<ICatalogDescription>) apManagerDesc.getCatalogs();
+	}
+	
+	@SuppressWarnings("unchecked")
+	private List<IActivePivotSchemaInstanceDescription> getSchemas() {
+		IActivePivotManagerDescription apManagerDesc = getActivePivotManagerDescription();
+		if (apManagerDesc.getSchemas() == null) {
+			synchronized (this) {
+				if (apManagerDesc.getSchemas() == null) {
+					apManagerDesc.setSchemas(new ArrayList<>());
+				}
+			}
+		}
+		return (List<IActivePivotSchemaInstanceDescription>) apManagerDesc.getSchemas();
+	}
 }

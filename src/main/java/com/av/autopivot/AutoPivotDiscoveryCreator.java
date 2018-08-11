@@ -16,30 +16,30 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 
+import com.av.autopivot.config.properties.AutoPivotProperties;
+import com.av.autopivot.config.properties.AutoPivotProperties.DataInfo;
+import com.av.autopivot.config.properties.AutoPivotProperties.RefDataInfo;
 import com.av.csv.CSVFormat;
 import com.av.csv.discover.CSVDiscovery;
+import com.google.common.base.Strings;
 import com.quartetfs.fwk.QuartetRuntimeException;
+import com.quartetfs.fwk.impl.Pair;
 import com.sun.istack.logging.Logger;
 
 public class AutoPivotDiscoveryCreator {
 	/** Logger **/
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotDiscoveryCreator.class);
-	protected static final String DEFAULT_MATCHER = "glob:**.csv";
 	
-	/** Spring environment, automatically wired */
+	/** AutoPivot Properties */
 	@Autowired
-	protected Environment env;
+	protected AutoPivotProperties autoPivotProps;
 	
-	public String getPathMatcher() {
-		return env.getProperty("filewatcher.pathMatcher", DEFAULT_MATCHER);
-	}
-	
-	public Path getDirectoryPathToWatch() {
-		String fwDirField = env.getRequiredProperty("filewatcher.dir");
+	public Path getDirectoryPathToWatch(DataInfo dataToLoad) {
+		String fwDirField = dataToLoad.getDirToWatch();
 		
 		Path directory;
 		try {
@@ -98,7 +98,7 @@ public class AutoPivotDiscoveryCreator {
 	 * @return charset used by the CSV parsers.
 	 */
 	public Charset getCharset() {
-		String charsetName = env.getProperty("charset");
+		String charsetName = autoPivotProps.getCharset();
 		if(charsetName != null) {
 			try {
 				return Charset.forName(charsetName);
@@ -114,14 +114,13 @@ public class AutoPivotDiscoveryCreator {
 	 * 
 	 * @return CSVFormat used to initialize CSVSource
 	 */
-	public CSVFormat createDiscoveryFormat() {
+	public CSVFormat createDiscoveryFormat(DataInfo dataToLoad) {
 		CSVFormat discovery = null;
-		Boolean bFwActivated = env.getProperty("filewatcher.activated", Boolean.class, false);
-		if (bFwActivated.equals(true)) {
-			discovery = discoverDir(getDirectoryPathToWatch());
+		if (Strings.isNullOrEmpty(dataToLoad.getDirToWatch()) == false) {
+			discovery = discoverDir(getDirectoryPathToWatch(dataToLoad), dataToLoad.getPathMatcher());
 		}
 		else {
-			discovery = discoverFile();
+			discovery = discoverFile(dataToLoad);
 		}
 		return discovery;
 	}
@@ -131,8 +130,8 @@ public class AutoPivotDiscoveryCreator {
 	 * 
 	 * @return CSVFormat used to initialize CSVSource
 	 */
-	private CSVFormat discoverFile() {
-		String fileName = env.getRequiredProperty("fileName");
+	private CSVFormat discoverFile(DataInfo dataToLoad) {
+		String fileName = dataToLoad.getFileName();
 		try {
 			CSVFormat discovery = new CSVDiscovery().discoverFile(fileName, getCharset());
 			return discovery;
@@ -148,11 +147,11 @@ public class AutoPivotDiscoveryCreator {
 	 * @param directory to explore
 	 * @return CSVFormat used to initialize CSVSource
 	 */
-	private CSVFormat discoverDir(Path directory) {
+	private CSVFormat discoverDir(Path directory, String pathMatcher) {
 		final ArrayList<String> fileNameList = new ArrayList<>();
 		CSVFormat discovery = null;
 		
-		final PathMatcher pattern = FileSystems.getDefault().getPathMatcher(getPathMatcher());
+		final PathMatcher pattern = FileSystems.getDefault().getPathMatcher(pathMatcher);
 		FileVisitor<Path> matcherVisitor = new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attribs) {
@@ -173,32 +172,56 @@ public class AutoPivotDiscoveryCreator {
 		}
 		catch (Exception ex) {
 			throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
-											  getPathMatcher(), directory.toString(), ex);
+											  pathMatcher, directory.toString(), ex);
 		}
 	}
 
-	public List<CSVFormat> createDiscoveryRefFormat() {
-		ArrayList<CSVFormat> discoveryList = null;
-		discoveryList = discoverRefDir(getDirectoryRefPathToWatch());
+	public List<Pair<RefDataInfo, CSVFormat>> createDiscoveryRefFormat() {
+		ArrayList<Pair<RefDataInfo, CSVFormat>> discoveryList = new ArrayList<>();
+		
+		Map<String, RefDataInfo> refDataInfoMap = autoPivotProps.getRefDataInfoMap();
+		for (String refDataToLoad : refDataInfoMap.keySet()) {
+			RefDataInfo refDataInfo = refDataInfoMap.get(refDataToLoad);
+			if (Strings.isNullOrEmpty(refDataInfo.getDirToWatch()) == false) {
+				discoveryList.addAll(discoverRefDir(refDataInfo));
+			}
+			else {
+				discoveryList.add(discoverRefFile(refDataInfo));
+			}
+		}
 		return discoveryList;
 	}
 	
-	private ArrayList<CSVFormat> discoverRefDir(Path directory) {
-		ArrayList<CSVFormat> discoveryList = new ArrayList<>();
+	private Pair<RefDataInfo, CSVFormat> discoverRefFile(RefDataInfo refDataInfo) {
+		Pair<RefDataInfo, CSVFormat> discovery = null;
+		try {
+			discovery = new Pair<RefDataInfo, CSVFormat>(refDataInfo,
+														 new CSVDiscovery().discoverFile(refDataInfo.getFileName(), getCharset()));
+		} catch (IOException ex) {
+			throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} and path: {}", 
+											  refDataInfo.getPathMatcher(), refDataInfo.getFileName(), ex);
+		}
+		return discovery;
+	}
+
+	private ArrayList<Pair<RefDataInfo, CSVFormat>> discoverRefDir(RefDataInfo refDataInfo) {
+		ArrayList<Pair<RefDataInfo, CSVFormat>> discoveryList = new ArrayList<>();
+		Path directory = getDirectoryRefPathToWatch(refDataInfo);
 		
-		final PathMatcher pattern = FileSystems.getDefault().getPathMatcher(getRefPathMatcher());
+		final PathMatcher pattern = FileSystems.getDefault().getPathMatcher(refDataInfo.getPathMatcher());
 		FileVisitor<Path> matcherVisitor = new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attribs) {
 				Path name = file.getFileName();
 				
 				if (pattern.matches(name)) {
-					CSVFormat discovery;
+					Pair<RefDataInfo, CSVFormat> discovery = null;
 					try {
-						discovery = new CSVDiscovery().discoverFile(directory.toString() + "\\" + name.toString(), getCharset());
+						discovery = new Pair<RefDataInfo, CSVFormat>(refDataInfo,
+																	 new CSVDiscovery().discoverFile(directory.toString() + "\\" + name.toString(), getCharset()));
 					} catch (IOException ex) {
 						throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
-								  						  getRefPathMatcher(), directory.toString(), ex);
+														  refDataInfo.getPathMatcher(), directory.toString(), ex);
 					}
 					discoveryList.add(discovery);
 				}
@@ -212,22 +235,16 @@ public class AutoPivotDiscoveryCreator {
 		}
 		catch (Exception ex) {
 			throw new QuartetRuntimeException("Could not discover a csv file with pattern: {} in directory: {}", 
-											  getRefPathMatcher(), directory.toString(), ex);
+											  refDataInfo.getPathMatcher(), directory.toString(), ex);
 		}
 	}
 
-	public String getRefPathMatcher() {
-		return env.getProperty("filewatcher.refPathMatcher", DEFAULT_MATCHER);
-	}
-
-	public Path getDirectoryRefPathToWatch() {
-		String fwDirField = env.getRequiredProperty("filewatcher.refdir");
-		
+	public Path getDirectoryRefPathToWatch(RefDataInfo refDataInfo) {
 		Path directory;
 		try {
-			directory = getDirPath(fwDirField);
+			directory = getDirPath(refDataInfo.getDirToWatch());
 		} catch (IOException ex) {
-			throw new QuartetRuntimeException("Could not discover this directory: {}", fwDirField);
+			throw new QuartetRuntimeException("Could not discover this directory: {}", refDataInfo.getDirToWatch());
 		}
 		return directory;
 	}

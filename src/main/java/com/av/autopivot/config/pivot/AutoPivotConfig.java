@@ -20,6 +20,7 @@ package com.av.autopivot.config.pivot;
 
 import static com.quartetfs.fwk.types.impl.ExtendedPluginInjector.inject;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,9 +32,12 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 
 import com.activeviam.health.monitor.impl.HealthCheckAgent;
+import com.av.autopivot.AutoPivotDiscoveryCreator;
+import com.av.autopivot.AutoPivotGenerator;
 import com.av.autopivot.config.contentserver.ContentServiceConfig;
 import com.av.autopivot.config.datastore.DatastoreDescriptionConfig;
 import com.av.autopivot.config.datastore.DatastoreServiceConfig;
+import com.av.autopivot.config.properties.AutoPivotProperties;
 import com.av.autopivot.config.source.SourceConfig;
 import com.av.autopivot.config.ui.ActiveUIResourceServerConfig;
 import com.av.autopivot.security.ActivePivotBranchPermissionsManagerConfig;
@@ -56,7 +60,6 @@ import com.qfs.server.cfg.impl.DatastoreConfig;
 import com.qfs.server.cfg.impl.JwtConfig;
 import com.qfs.server.cfg.impl.StreamingMonitorConfig;
 import com.quartetfs.fwk.Registry;
-import com.quartetfs.fwk.contributions.impl.ClasspathContributionProvider;
 import com.quartetfs.fwk.monitoring.jmx.impl.JMXEnabler;
 
 /**
@@ -92,14 +95,13 @@ value = {
 		ActivePivotManagerDescriptionConfig.class,
 		DatastoreDescriptionConfig.class,
 		DatastoreConfig.class,
-		DatastoreServiceConfig.class,
 		ActivePivotBranchPermissionsManagerConfig.class,
 		ContentServiceConfig.class,
 		SourceConfig.class,
 		SecurityConfig.class,
 		JwtConfig.class,
 		AutoPivotCorsFilterConfig.class,
-	
+		
 		// ActiveViam Services
 		ActivePivotServicesConfig.class,
 		ActiveViamRestServicesConfig.class,
@@ -122,14 +124,10 @@ public class AutoPivotConfig {
 	/** Logger **/
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotConfig.class.getName());
 
-	/** Before anything else we statically initialise the ActiveViam Registry. */
+	/** Before anything else we statically initialize the ActiveViam Registry. */
 	static {
-		Registry.setContributionProvider(new ClasspathContributionProvider("com.av", "com.qfs", "com.quartetfs"));
+		AutoPivotGenerator.initRegistry(Arrays.asList("com.av"));
 	}
-
-	/** Spring environment, automatically wired */
-	@Autowired
-	protected Environment env;
 
 	/** Datastore spring configuration */
 	@Autowired
@@ -179,6 +177,23 @@ public class AutoPivotConfig {
 		apConfig.activePivotManager().start();
 
 		return null;
+	}
+	
+	@Bean
+	public AutoPivotProperties autoPivotProperties() {
+		return new AutoPivotProperties();
+	}
+	
+	@Bean
+	public DatastoreServiceConfig DatastoreServiceConfig(AutoPivotProperties autoPivotProperties,
+														 AutoPivotDiscoveryCreator discoveryCreator) {
+		return new DatastoreServiceConfig(autoPivotProperties, discoveryCreator);
+	}
+	
+	/** Discover the input data file (CSV separator, column types) */
+	@Bean
+	public AutoPivotDiscoveryCreator discoveryCreator() {
+		return new AutoPivotDiscoveryCreator();
 	}
 
 	/**

@@ -21,20 +21,24 @@ package com.av.autopivot.config.datastore;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
 
+import com.av.autopivot.AutoPivotDiscoveryCreator;
 import com.av.autopivot.AutoPivotGenerator;
-import com.av.autopivot.AutoPivotRefDataGenerator;
-import com.av.autopivot.config.source.SourceConfig;
+import com.av.autopivot.StoreInfo;
+import com.av.autopivot.config.properties.AutoPivotProperties;
+import com.av.autopivot.config.properties.AutoPivotProperties.DataInfo;
+import com.av.autopivot.config.properties.AutoPivotProperties.RefDataInfo;
 import com.av.csv.CSVFormat;
 import com.qfs.desc.IDatastoreSchemaDescription;
 import com.qfs.desc.IReferenceDescription;
 import com.qfs.desc.IStoreDescription;
 import com.qfs.desc.impl.DatastoreSchemaDescription;
 import com.qfs.server.cfg.IDatastoreDescriptionConfig;
+import com.quartetfs.fwk.impl.Pair;
 
 /**
  * 
@@ -45,14 +49,13 @@ import com.qfs.server.cfg.IDatastoreDescriptionConfig;
  */
 public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 
-	/** Spring environment, automatically wired */
+	/** AutoPivot Configuration */
 	@Autowired
-	protected Environment env;
-
-	/** Source configuration */
+	protected AutoPivotProperties autoPivotProps;
+	
+	/** AutoPivotDiscoveryCreator */
 	@Autowired
-	protected SourceConfig sourceConfig;
-
+	protected AutoPivotDiscoveryCreator discoveryCreator;
 	
 	/**
 	 * 
@@ -63,17 +66,6 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 	@Bean
 	public AutoPivotGenerator generator() {
 		return new AutoPivotGenerator();
-	}
-	
-	/**
-	 * 
-	 * Generator of store and cube descriptions.
-	 * 
-	 * @return ActivePivot Reference Data generator
-	 */
-	@Bean
-	public AutoPivotRefDataGenerator generatorRefData() {
-		return new AutoPivotRefDataGenerator();
 	}
 	
 	/** @return the references between stores */
@@ -97,26 +89,38 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 	@Bean
 	public IDatastoreSchemaDescription schemaDescription() {	
 		final Collection<IStoreDescription> stores = new LinkedList<>();
-		stores.add(generateFromData());
+		stores.addAll(generateFromData());
 		stores.addAll(generateFromRefDate());
 		return new DatastoreSchemaDescription(stores, references());
 	}
 	
-	private IStoreDescription generateFromData() {
-		CSVFormat discovery = sourceConfig.discoverCreator().createDiscoveryFormat();
+	private Collection<IStoreDescription> generateFromData() {
+		final Collection<IStoreDescription> stores = new LinkedList<>();
+		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
 		AutoPivotGenerator generator = generator();
-		return generator.createStoreDescription(discovery, env);
+		for (String key : dataInfoMap.keySet()) {
+			DataInfo dataInfo = dataInfoMap.get(key);
+			
+			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(dataInfo);
+			
+			StoreInfo storeDesc = StoreInfo.createStoreInfo(key, dataInfo, discovery);
+			stores.add(generator.createStoreDescription(storeDesc));
+		}
+		return stores;
 	}
 	
 	private Collection<IStoreDescription> generateFromRefDate() {
-		List<CSVFormat> discoveryList = sourceConfig.discoverCreator().createDiscoveryRefFormat();
-		AutoPivotRefDataGenerator generator = generatorRefData();
+		final Collection<IStoreDescription> stores = new LinkedList<>();
+		List<Pair<RefDataInfo, CSVFormat>> discoveryList = discoveryCreator.createDiscoveryRefFormat();
+		AutoPivotGenerator generator = generator();
 		
-		final Collection<IStoreDescription> stores = new LinkedList<>();	
-		for (CSVFormat csvFormat : discoveryList) {
-			stores.add(generator.createStoreDescription(csvFormat.getFileNameWithoutExtension(), csvFormat, env));
+		for (Pair<RefDataInfo, CSVFormat> pair : discoveryList) {
+			RefDataInfo refDataInfo = pair.getLeft();
+			CSVFormat discovery = pair.getRight();
+			StoreInfo storeDesc = StoreInfo.createStoreInfo(discovery.getFileNameWithoutExtension(), refDataInfo, discovery);
+			stores.add(generator.createStoreDescription(storeDesc));
 		}
-		return stores;		
+		return stores;	
 	}
 
 }

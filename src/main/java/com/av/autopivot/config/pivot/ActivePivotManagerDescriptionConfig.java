@@ -18,11 +18,16 @@
  */
 package com.av.autopivot.config.pivot;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
+import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.av.autopivot.AutoPivotDiscoveryCreator;
 import com.av.autopivot.AutoPivotGenerator;
+import com.av.autopivot.StoreInfo;
 import com.av.autopivot.config.datastore.DatastoreDescriptionConfig;
+import com.av.autopivot.config.properties.AutoPivotProperties;
+import com.av.autopivot.config.properties.AutoPivotProperties.DataInfo;
 import com.av.autopivot.config.source.SourceConfig;
 import com.av.csv.CSVFormat;
 import com.qfs.server.cfg.IActivePivotManagerDescriptionConfig;
@@ -40,9 +45,9 @@ import com.quartetfs.biz.pivot.definitions.IActivePivotManagerDescription;
  */
 public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerDescriptionConfig {
 
-	/** Spring environment */
+	/** Autopivot Configuration */
 	@Autowired
-	protected Environment env;
+	protected AutoPivotProperties autoPivotProps;
 
 	/** Datasource configuration */
 	@Autowired
@@ -51,17 +56,24 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 	/** Datastore configuration */
 	@Autowired
 	protected DatastoreDescriptionConfig datastoreConfig;
+	
+	@Autowired
+	protected AutoPivotDiscoveryCreator discoveryCreator;
 
 	@Override
 	public IActivePivotManagerDescription managerDescription() {
 
-		CSVFormat discovery = sourceConfig.discoverCreator().createDiscoveryFormat();
-
 		AutoPivotGenerator generator = datastoreConfig.generator();
-		IActivePivotManagerDescription manager =
-				generator.createActivePivotManagerDescription(discovery, env);
-
-		return manager;
+		
+		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
+		for (String key : dataInfoMap.keySet()) {
+			DataInfo dataInfo = dataInfoMap.get(key);
+			
+			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(dataInfo);
+			
+			StoreInfo storeDesc = StoreInfo.createStoreInfo(key, dataInfo, discovery);
+			generator.createCube(storeDesc);
+		}
+		return generator.getActivePivotManagerDescription();
 	}
-
 }
