@@ -35,13 +35,16 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 	/** data store name used to store exchange rate */
 	private static final String FOREX_STORE_NAME = "fxrate";
 	
-	/** data store field which contains fx rate */
+	/** data store fields which contains fx rate */
 	private static final String FOREX_RATE = "RATE";
 	private static final String FOREX_CURRENCY = "FOREIGN_CUR";
 	private static final String FOREX_TARGET_CURRENCY = "CUR";
 	
 	/** currency level info */
 	protected ILevelInfo currencyLevelInfo = null;
+	
+	/** target currency level info */
+	protected ILevelInfo targetCurrencyLevelInfo = null;
 
 	public FXPostProcessor(String name, IPostProcessorCreationContext creationContext) {
 		super(name, creationContext);
@@ -54,6 +57,11 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 		// init required level values
 		if (this.leafLevelsInfo.isEmpty()) {
 			throw new QuartetRuntimeException("FXPostProcessor need the currency level info to be able to locate currency attached to the underlying measure.");
+		}			
+		currencyLevelInfo = this.leafLevelsInfo.get(0);
+		
+		if (this.leafLevelsInfo.size() > 1) {
+			targetCurrencyLevelInfo = this.leafLevelsInfo.get(1);
 		}			
 		currencyLevelInfo = this.leafLevelsInfo.get(0);
 		
@@ -75,13 +83,19 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 		// Retrieve the measure in the native currency
 		final double measureNative = (Double) underlyingMeasures[0];
 		
+		// Retrieve the target currency
+		String targetCurrency = FX_TARGET_CURRENCY;
+		if (targetCurrencyLevelInfo != null) {
+			targetCurrency = (String) LocationUtil.getCoordinate(leafLocation, targetCurrencyLevelInfo);
+		}
+		
 		// Nothing to do when the current & target currencies are the same
 		if (FX_TARGET_CURRENCY.equals(currency)) {
 			return measureNative;
 		}
 		
 		// Retrieve Rate from cache or datastore
-		Object result = getRate(currency, FX_TARGET_CURRENCY); 
+		Object result = getRate(currency, targetCurrency); 
 		if (result instanceof String) {
 			return result;
 		}
