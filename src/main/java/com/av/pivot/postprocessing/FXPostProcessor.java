@@ -101,14 +101,25 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 		}
 		return (Double)result * measureNative;
 	}
+	
+	private String buildKey(String currency, String fxTargetCurrency) {
+		StringBuilder builder = new StringBuilder();
+		return builder.append("[")
+					  .append(fxTargetCurrency)
+					  .append("/")
+					  .append(currency)
+					  .append("]")
+					  .toString();
+	}
 
 	private Object getRate(String currency, String fxTargetCurrency) {
 		final IQueryCache queryCache = getContext().get(IQueryCache.class);
-		Object result = queryCache.get(currency);
+		final String storingKey = buildKey(currency, fxTargetCurrency);
+		Object result = queryCache.get(storingKey);
 		
 		if (result == null) {
 			final Object rateRetrieved = getRateFromDataStore(currency, fxTargetCurrency);
-			final Object rateCached = queryCache.putIfAbsent(currency, rateRetrieved);
+			final Object rateCached = queryCache.putIfAbsent(storingKey, rateRetrieved);
 			result = rateCached == null ? rateRetrieved : rateCached;
 		}
 		return result;

@@ -551,7 +551,7 @@ public class AutoPivotGenerator {
 		getActivePivotDescription(storeDesc.getStoreName()).setAxisDimensions(dimensions);
 	}
 
-	private IActivePivotDescription getActivePivotDescription(String storeName) {
+	public IActivePivotDescription getActivePivotDescription(String storeName) {
 		if (activePivotDescriptionMap == null) {
 			synchronized (this) {
 				if (activePivotDescriptionMap == null) {
@@ -568,7 +568,7 @@ public class AutoPivotGenerator {
 		return activePivotDescriptionMap.get(storeName);
 	}
 	
-	private List<IAggregatedMeasureDescription> getAggregatedMeasuresDescription(String storeName) {
+	public List<IAggregatedMeasureDescription> getAggregatedMeasuresDescription(String storeName) {
 		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
 		if (measureDesc.getAggregatedMeasuresDescription() == null) {
 			synchronized (this) {
@@ -580,7 +580,7 @@ public class AutoPivotGenerator {
 		return measureDesc.getAggregatedMeasuresDescription();
 	}
 	
-	private List<IPostProcessorDescription> getPostProcessorsDescription(String storeName) {
+	public List<IPostProcessorDescription> getPostProcessorsDescription(String storeName) {
 		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
 		if (measureDesc.getPostProcessorsDescription() == null) {
 			synchronized (this) {
@@ -592,7 +592,7 @@ public class AutoPivotGenerator {
 		return measureDesc.getPostProcessorsDescription();
 	}
 	
-	private IMeasuresDescription getMeasuresDescription(String storeName) {
+	public IMeasuresDescription getMeasuresDescription(String storeName) {
 		IActivePivotDescription activePivotDescription = getActivePivotDescription(storeName);
 		if (activePivotDescription.getMeasuresDescription() == null) {
 			synchronized (this) {
@@ -604,7 +604,7 @@ public class AutoPivotGenerator {
 		return activePivotDescription.getMeasuresDescription();
 	}
 	
-	private List<INativeMeasureDescription> getNativeMeasureDescription(String storeName) {
+	public List<INativeMeasureDescription> getNativeMeasureDescription(String storeName) {
 		IMeasuresDescription measureDesc = getMeasuresDescription(storeName);
 		if (measureDesc.getNativeMeasures() == null) {
 			synchronized (this) {
@@ -628,7 +628,7 @@ public class AutoPivotGenerator {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private List<ICatalogDescription> getCatalogs() {
+	public List<ICatalogDescription> getCatalogs() {
 		IActivePivotManagerDescription apManagerDesc = getActivePivotManagerDescription();
 		if (apManagerDesc.getCatalogs() == null) {
 			synchronized (this) {
@@ -641,7 +641,7 @@ public class AutoPivotGenerator {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private List<IActivePivotSchemaInstanceDescription> getSchemas() {
+	public List<IActivePivotSchemaInstanceDescription> getSchemas() {
 		IActivePivotManagerDescription apManagerDesc = getActivePivotManagerDescription();
 		if (apManagerDesc.getSchemas() == null) {
 			synchronized (this) {
