@@ -2,6 +2,7 @@ package com.av.pivot.postprocessing;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -19,6 +20,7 @@ import com.quartetfs.biz.pivot.IPointLocationBuilder;
 import com.quartetfs.biz.pivot.IPointLocationReader;
 import com.quartetfs.biz.pivot.cellset.IAggregatesLocationResult;
 import com.quartetfs.biz.pivot.cube.hierarchy.ILevelInfo;
+import com.quartetfs.biz.pivot.cube.hierarchy.impl.HierarchiesUtil;
 import com.quartetfs.biz.pivot.cube.hierarchy.measures.IPostProcessorCreationContext;
 import com.quartetfs.biz.pivot.postprocessing.IPostProcessor;
 import com.quartetfs.biz.pivot.postprocessing.impl.ADynamicAggregationPostProcessor;
@@ -36,7 +38,7 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 	private static final long serialVersionUID = 6298172968882576777L;
 	
 	/** post processor plugin key */
-	public static final String PLUGIN_KEY = "FX_PP";
+	public static final String PLUGIN_KEY = "CGMTM_PP";
 
 	/** currency level info from facts */
 	private ILevelInfo currencyLevelInfo;
@@ -61,12 +63,12 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 		super.init(properties);
 		
 		// init required level values
-		if (this.leafLevelsInfo.isEmpty() || this.leafLevelsInfo.size() != 3) {
-			throw new QuartetRuntimeException("CurrencyGroupManyToManyPostProcessor need at least 3 levels (Currency from facts, Group & Currency levels from Analysis Dimension)");
+		if (this.leafLevelsInfo.isEmpty()) {
+			throw new QuartetRuntimeException("CurrencyGroupManyToManyPostProcessor need at least Currency level associated to the facts");
 		}			
 		currencyLevelInfo = this.leafLevelsInfo.get(0);
-		groupLevelInfo = this.leafLevelsInfo.get(1);
-		currencyGroupLevelInfo = this.leafLevelsInfo.get(2);
+		groupLevelInfo = HierarchiesUtil.getLevel(getActivePivot(), "CurrencyGroup").getLevelInfo();
+		currencyGroupLevelInfo = HierarchiesUtil.getLevel(getActivePivot(), "CurrencyGroup_1").getLevelInfo();
 	}
 
 	@Override
@@ -123,7 +125,7 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 			IDictionaryCursor cursor = dv.getQueryRunner()
 										 .forStore(CURRENCY_GROUP_STORE_NAME)
 										 .withCondition(createConditionGroupsFilterByCurrency(currency))
-										 .selectingAllStoreFields()
+										 .selecting(GROUP)
 										 .run();
 			if (cursor.hasNext()) {
 				while (cursor.hasNext()) {
@@ -137,7 +139,33 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 		}
 		
 		protected Map<String, List<String>> getGroupsToCurrency() {
-			return null;
+			final IDatastoreVersion dv = getDatastoreVersion();
+			final Map<String, List<String>> result = new HashMap<>();
+			
+			IDictionaryCursor cursor = dv.getQueryRunner()
+										 .forStore(CURRENCY_GROUP_STORE_NAME)
+										 .withoutCondition()
+										 .selectingAllStoreFields()
+										 .run();
+			if (cursor.hasNext()) {
+				while (cursor.hasNext()) {
+					cursor.next();
+					
+					IRecordReader reader = cursor.getRecord();
+					String group = (String)reader.read(GROUP);
+					String currency = (String)reader.read(CURRENCY);
+					
+					if (result.containsKey(group)) {
+						result.get(group).add(currency);
+					}
+					else {
+						List<String> currenciesList = new ArrayList<>();
+						currenciesList.add(currency);
+						result.put(group, currenciesList);
+					}
+				}
+			}
+			return result;
 		}
 		
 		private ICondition createConditionGroupsFilterByCurrency(String currency) {
@@ -174,8 +202,8 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 			final ILevelInfo groupLevel = CurrencyGroupManyToManyPostProcessor.this.groupLevelInfo;
 			final Object groupMember = location.getCoordinate(groupLevel.getHierarchyInfo().getOrdinal() - 1,
 															  groupLevel.getOrdinal());
-			if (groupMember == null) {
-				// A group cooridnate already exist.
+			if (groupMember != null) {
+				// A group coordinate already exist.
 				// Keep only or bucket if it matches the current one
 				if (getGroupsToCurrency().get(groupMember).contains(currencyMember)) {
 					// Set the groups to call at least once setNext

@@ -32,7 +32,9 @@ import com.av.autopivot.config.properties.AutoPivotProperties.DataInfo;
 import com.av.autopivot.config.source.SourceConfig;
 import com.av.csv.CSVFormat;
 import com.av.pivot.aggregation.SumOrStringAggregateFunction;
+import com.av.pivot.analysishierarchy.CurrencyGroupAnalysisHierarchy;
 import com.av.pivot.analysishierarchy.FxTargetCurrencyAnalysisHierarchy;
+import com.av.pivot.postprocessing.CurrencyGroupManyToManyPostProcessor;
 import com.av.pivot.postprocessing.FXPostProcessor;
 import com.qfs.server.cfg.IActivePivotManagerDescriptionConfig;
 import com.quartetfs.biz.pivot.definitions.IActivePivotManagerDescription;
@@ -96,8 +98,16 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 	}
 	
 	private void addCustomDimensions(AutoPivotGenerator generator, StoreInfo storeDesc) {
-		// Add Analysis dimension used to select fx target currency
-		IAxisDimensionDescription fxTargetCurrencyDimension = new AxisDimensionDescription("Analysis Dimension");
+		/////////////////////////////////////////
+		// Create Analysis Dimension
+		IAxisDimensionDescription analysisDimension = new AxisDimensionDescription("Analysis Dimension");
+
+		Properties props = new Properties();
+		props.put("description", "Analysis Dimension associated to custom post processors");
+		analysisDimension.setProperties(props);
+		
+		/////////////////////////////////////////
+		// Add analysis hierarchy used to select fx target currency
 		IAxisHierarchyDescription fxTargetCurrencyHierarchy = new AxisHierarchyDescription("FxTargetCurrency",
 																						   "CustomAH",
 																						   false);
@@ -106,55 +116,42 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 		fxTargetCurrencyHierarchy.setPluginKey(FxTargetCurrencyAnalysisHierarchy.PLUGIN_KEY);
 		
 		// Set up description
-		Properties props = new Properties();
-		props.put("description", "Analysis Dimension associated to custom post processors");
-		fxTargetCurrencyDimension.setProperties(props);
-		
 		props = new Properties();
 		props.put("description", "Target currency used to countervaluate pnl");
 		fxTargetCurrencyHierarchy.setProperties(props);
 		
-		// Associate Dimension x Hierarchy
-		fxTargetCurrencyDimension.getHierarchies().add(fxTargetCurrencyHierarchy);
-		generator.getActivePivotDescription(storeDesc.getStoreName())
-				 .getAxisDimensions()
-				 .getValues()
-				 .add(fxTargetCurrencyDimension);
-		
-		
-		// Add Analysis dimension used to select fx target currency
-		/*IAxisDimensionDescription fxGroupCurrencyDimension = new AxisDimensionDescription("Analysis Dimension");
-		IAxisHierarchyDescription fxGroupCurrencyHierarchy = new AxisHierarchyDescription("FxGroupCurrency",
+		/////////////////////////////////////////
+		// Add Analysis hierarchy used to select currencies group
+		IAxisHierarchyDescription fxGroupCurrencyHierarchy = new AxisHierarchyDescription("CurrencyGroup",
 																						  "CustomAH",
 																						  false);
 		
 		// Associate AAnalysis Hierarchy
-		fxTargetCurrencyHierarchy.setPluginKey(CurrencyGroupAnalysisHierarchy.PLUGIN_KEY);
+		fxGroupCurrencyHierarchy.setPluginKey(CurrencyGroupAnalysisHierarchy.PLUGIN_KEY);
 		
 		// Set up description
 		props = new Properties();
-		props.put("description", "Analysis Dimension associated to custom post processors");
-		fxGroupCurrencyDimension.setProperties(props);
-		
-		props = new Properties();
-		props.put("description", "Handle the name of currencies group.");
+		props.put("description", "Handle currencies group name");
 		fxGroupCurrencyHierarchy.setProperties(props);
 		
+		/////////////////////////////////////////
 		// Associate Dimension x Hierarchy
-		fxGroupCurrencyDimension.getHierarchies().add(fxGroupCurrencyHierarchy);
+		analysisDimension.getHierarchies().add(fxTargetCurrencyHierarchy);
+		analysisDimension.getHierarchies().add(fxGroupCurrencyHierarchy);
 		generator.getActivePivotDescription(storeDesc.getStoreName())
 				 .getAxisDimensions()
 				 .getValues()
-				 .add(fxGroupCurrencyDimension);*/
+				 .add(analysisDimension);
 	}
 	
 	private void addCustomPostProcessors(AutoPivotGenerator generator, StoreInfo storeDesc) {
 		String storeName = storeDesc.getStoreName();
 		
-		// SumOrString Aggreated Measure
+		// SumOrString Aggregated Measure
 		IAggregatedMeasureDescription sumOrString = new AggregatedMeasureDescription("pnl", SumOrStringAggregateFunction.PLUGIN_KEY);
 		sumOrString.setFolder("CustomPP");
 		sumOrString.setFormatter(AutoPivotGenerator.DOUBLE_FORMAT);
+		sumOrString.setVisible(false);
 		generator.getAggregatedMeasuresDescription(storeName)
 				 .add(sumOrString);
 		
@@ -168,5 +165,17 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 		fxPP.setUnderlyingMeasures("pnl.SUM");
 		generator.getPostProcessorsDescription(storeName)
 				 .add(fxPP);
+		
+		// CurrencyGroupManyToManyPostProcessor
+		props = new Properties();
+		props.setProperty(ADynamicAggregationPostProcessor.ANALYSIS_LEVELS_PROPERTY, "CurrencyGroup@CurrencyGroup@Analysis Dimension,CurrencyGroup_1@CurrencyGroup@Analysis Dimension");
+		props.setProperty(ADynamicAggregationPostProcessor.LEAF_LEVELS, "Currency@Currency@Currency,CurrencyGroup_1@CurrencyGroup@Analysis Dimension");
+		props.setProperty(ADynamicAggregationPostProcessor.AGGREGATION_FUNCTION, SumOrStringAggregateFunction.PLUGIN_KEY);
+		IPostProcessorDescription cGMTMPP = new PostProcessorDescription("CGMTMMeasure", CurrencyGroupManyToManyPostProcessor.PLUGIN_KEY, props);
+		cGMTMPP.setFolder("CustomPP");
+		cGMTMPP.setFormatter(AutoPivotGenerator.DOUBLE_FORMAT);
+		cGMTMPP.setUnderlyingMeasures("pnl.SUM");
+		generator.getPostProcessorsDescription(storeName)
+				 .add(cGMTMPP);
 	}
 }
