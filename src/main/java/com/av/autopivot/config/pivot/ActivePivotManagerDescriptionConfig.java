@@ -124,7 +124,7 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 		// Add Analysis hierarchy used to select currencies group
 		IAxisHierarchyDescription fxGroupCurrencyHierarchy = new AxisHierarchyDescription("CurrencyGroup",
 																						  "CustomAH",
-																						  false);
+																						  true);
 		
 		// Associate AAnalysis Hierarchy
 		fxGroupCurrencyHierarchy.setPluginKey(CurrencyGroupAnalysisHierarchy.PLUGIN_KEY);

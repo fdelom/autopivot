@@ -8,6 +8,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import com.qfs.store.IDatastore;
 import com.qfs.store.IDatastoreVersion;
@@ -19,6 +20,8 @@ import com.qfs.store.selection.ISelectionListener;
 import com.qfs.store.selection.impl.Selection;
 import com.qfs.store.transaction.DatastoreTransactionException;
 import com.quartetfs.biz.pivot.cube.hierarchy.IAnalysisHierarchyInfo;
+import com.quartetfs.biz.pivot.cube.hierarchy.ILevel;
+import com.quartetfs.biz.pivot.cube.hierarchy.ILevelInfo.ClassificationType;
 import com.quartetfs.biz.pivot.cube.hierarchy.IMultiVersionHierarchy;
 import com.quartetfs.biz.pivot.cube.hierarchy.axis.impl.AAnalysisHierarchy;
 import com.quartetfs.fwk.QuartetExtendedPluginValue;
@@ -66,6 +69,14 @@ public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 		
 		registerContinuousSelection();
 	}
+	
+	private Object[] buildFinalPath(Object[] actualPath) {
+		if (isAllMembersEnabled == true) {
+			return Stream.concat(Stream.of(ILevel.ALLMEMBER), Stream.of(actualPath))
+						 .toArray();
+		}
+		return actualPath;
+	}
 
 	@Override
 	public Collection<Object[]> buildDiscriminatorPaths() {
@@ -73,8 +84,8 @@ public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 		
 		// Store is probably not loaded at this step, so put default values
 		if (result.isEmpty()) {
-			result.add(new Object[] { DEFAULT_MEMBER_GROUP,
-									  DEFAULT_MEMBER_CURRENCY });
+			result.add(buildFinalPath(new Object[] { DEFAULT_MEMBER_GROUP,
+									  				 DEFAULT_MEMBER_CURRENCY }));
 		}
 		return result;
 	}
@@ -94,8 +105,8 @@ public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 					cursor.next();
 					
 					IRecordReader reader = cursor.getRecord();
-					result.add(new Object[] { reader.read(GROUP),
-											  reader.read(CURRENCY) });
+					result.add(buildFinalPath(new Object[] { reader.read(GROUP),
+											  				 reader.read(CURRENCY) }));
 				}
 			}
 		}
@@ -124,6 +135,24 @@ public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 				}
 			});
 		}
+	}
+	
+	@Override
+	public String getLevelName(int levelOrdinal) {
+		String root = getHierarchyInfo().getName();
+		if (isAllMembersEnabled == true) {
+			if (levelOrdinal == 0) {
+				return ClassificationType.ALL.name();
+			}
+			else if (levelOrdinal == 1) {
+				return root;
+			}
+			return root + "_" + (levelOrdinal -1);
+		}
+		if (levelOrdinal == 0) {
+			return root;
+		}
+		return root + "_" + (levelOrdinal -1);
 	}
 	
 	@Override
@@ -160,6 +189,9 @@ public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 
 	@Override
 	public int getLevelsCount() {
+		if (isAllMembersEnabled == true) {
+			return 3;
+		}
 		return 2;
 	}
 
