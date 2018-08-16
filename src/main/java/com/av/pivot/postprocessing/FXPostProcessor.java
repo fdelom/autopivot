@@ -1,10 +1,13 @@
 package com.av.pivot.postprocessing;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
-import com.qfs.condition.ICondition;
+import com.qfs.condition.IConstantCondition;
 import com.qfs.condition.impl.BaseConditions;
 import com.qfs.store.IDatastoreVersion;
+import com.qfs.store.query.ICompiledQuery;
 import com.qfs.store.query.ICursor;
 import com.qfs.store.query.IRecordQuery;
 import com.qfs.store.query.condition.impl.RecordQuery;
@@ -45,6 +48,9 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 	
 	/** target currency level info */
 	protected ILevelInfo targetCurrencyLevelInfo = null;
+	
+	/** compiled query used to extract fx rate for a tuple (currency, target currency) */
+	private ICompiledQuery compiledQueryFxRate = null;
 
 	public FXPostProcessor(String name, IPostProcessorCreationContext creationContext) {
 		super(name, creationContext);
@@ -90,7 +96,7 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 		}
 		
 		// Nothing to do when the current & target currencies are the same
-		if (FX_TARGET_CURRENCY.equals(currency)) {
+		if (targetCurrency.equals(currency)) {
 			return measureNative;
 		}
 		
@@ -127,22 +133,40 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 
 	private Object getRateFromDataStore(String currency, String fxTargetCurrency) {
 		final IDatastoreVersion dv = getDatastoreVersion();
+		final Map<String, Object> parameters = new HashMap<>();
 		
-		IRecordQuery query = new RecordQuery(FOREX_STORE_NAME, 
-											 createCondition(currency, fxTargetCurrency), 
-											 FOREX_RATE);
-		ICursor cursor = dv.execute(query);
+		if (compiledQueryFxRate == null) {
+			createCompiledQueryFxRate();
+		}
+				
+		parameters.put("currency_from_facts", currency);
+		parameters.put("currency_target", fxTargetCurrency);
+		
+		ICursor cursor = dv.getQueryManager()
+						   .forQuery(compiledQueryFxRate)
+						   .withParameters(parameters)
+						   .run();
 		if (cursor.hasNext() == false) {
 			return "Exchange rate of [" + currency + "/" + fxTargetCurrency + "] not found.";
 		}
 		return getFirstRate(cursor);
 	}
+
+	private void createCompiledQueryFxRate() {
+		final IDatastoreVersion dv = getDatastoreVersion();
+		IRecordQuery query = new RecordQuery(FOREX_STORE_NAME, 
+											 createDynamicCondition(), 
+											 FOREX_RATE);
+		compiledQueryFxRate = dv.getQueryManager().compile(query);
+	}
 	
-	private ICondition createCondition(String currency, String fxTargetCurrency) {
+	private IConstantCondition createDynamicCondition() {
 		return BaseConditions.And(
-		       BaseConditions.Equal(FOREX_CURRENCY, currency),
-		       BaseConditions.Equal(FOREX_TARGET_CURRENCY, fxTargetCurrency)
-		);
+			       BaseConditions.Equal(FOREX_CURRENCY)
+			       				 .parametrized("currency_from_facts"),
+			       BaseConditions.Equal(FOREX_TARGET_CURRENCY)
+			       				 .parametrized("currency_target")
+			);
 	}
 	
 	private Double getFirstRate(ICursor cursor) {

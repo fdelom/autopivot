@@ -8,10 +8,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import com.qfs.condition.ICondition;
+import com.qfs.condition.IDynamicCondition;
 import com.qfs.condition.impl.BaseConditions;
 import com.qfs.store.IDatastoreVersion;
+import com.qfs.store.query.ICompiledQuery;
 import com.qfs.store.query.IDictionaryCursor;
+import com.qfs.store.query.IRecordQuery;
+import com.qfs.store.query.condition.impl.RecordQuery;
 import com.qfs.store.record.IRecordFormat;
 import com.qfs.store.record.IRecordReader;
 import com.quartetfs.biz.pivot.ILocation;
@@ -118,14 +121,22 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 		/** True if the expansion procedure should keep on running */
 		protected boolean next;
 		
+		/** Compiled query used to get Groups for one currency */
+		private ICompiledQuery compiledQueryGroupsFromCurrency = null;
+		
 		protected List<String> getGroups(String currency) {
 			final IDatastoreVersion dv = getDatastoreVersion();
 			final List<String> result = new ArrayList<>();
+			final Map<String, Object> paramMap = new HashMap<String, Object>();
 			
-			IDictionaryCursor cursor = dv.getQueryRunner()
-										 .forStore(CURRENCY_GROUP_STORE_NAME)
-										 .withCondition(createConditionGroupsFilterByCurrency(currency))
-										 .selecting(GROUP)
+			if (compiledQueryGroupsFromCurrency == null) {
+				createCompiledQueryGroupsFromCurrency();
+			}
+			
+			paramMap.put("Currency_to_find" , currency);
+			IDictionaryCursor cursor = dv.getQueryManager()
+										 .forQuery(compiledQueryGroupsFromCurrency)
+										 .withParameters(paramMap)
 										 .run();
 			if (cursor.hasNext()) {
 				while (cursor.hasNext()) {
@@ -138,6 +149,16 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 			return result;
 		}
 		
+		private void createCompiledQueryGroupsFromCurrency() {
+			final IDatastoreVersion dv = getDatastoreVersion();
+			
+			IDynamicCondition dynamicCondition = BaseConditions.Equal(CURRENCY)
+					   										   .parametrized("Currency_to_find");
+			IRecordQuery recordQuery = new RecordQuery(CURRENCY_GROUP_STORE_NAME, dynamicCondition, GROUP);
+			compiledQueryGroupsFromCurrency = dv.getQueryManager()
+					 							.compile(recordQuery);
+		}
+
 		protected Map<String, List<String>> getGroupsToCurrency() {
 			final IDatastoreVersion dv = getDatastoreVersion();
 			final Map<String, List<String>> result = new HashMap<>();
@@ -166,10 +187,6 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 				}
 			}
 			return result;
-		}
-		
-		private ICondition createConditionGroupsFilterByCurrency(String currency) {
-			return BaseConditions.Equal(CURRENCY, currency);
 		}
 		
 		@Override
