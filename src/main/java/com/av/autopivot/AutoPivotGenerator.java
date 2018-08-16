@@ -117,12 +117,7 @@ public class AutoPivotGenerator {
 	
 	/** Active Pivot descriptions Map */
 	private Map<String, IActivePivotDescription> activePivotDescriptionMap = null;
-	
-	public enum AGGREGATE_PROVIDER_TYPE {
-		JUST_IN_TIME,
-		BITMAP
-	}
-	
+		
 	public static void initRegistry(List<String> packageList) {
 		List<String> consolidatedPackageList = new ArrayList<>();
 		
@@ -171,8 +166,7 @@ public class AutoPivotGenerator {
 		SelectionDescription selection = new SelectionDescription(storeDesc.getStoreName(), fields);
 		
 		// ActivePivot instance
-		IActivePivotDescription pivot = createActivePivotDescription(storeDesc, 
-																	 AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME);
+		IActivePivotDescription pivot = createActivePivotDescription(storeDesc);
 		IActivePivotInstanceDescription instance = new ActivePivotInstanceDescription(storeDesc.getStoreName(), pivot);
 		
 		desc.setDatastoreSelection(selection);
@@ -293,12 +287,11 @@ public class AutoPivotGenerator {
 	 * @param storeDesc input data format
 	 * @return AcivePivot description
 	 */
-	public IActivePivotDescription createActivePivotDescription(StoreInfo storeDesc,
-																AGGREGATE_PROVIDER_TYPE aggregateProviderType) {
+	public IActivePivotDescription createActivePivotDescription(StoreInfo storeDesc) {
 		
 		IActivePivotDescription activePivotDescription = getActivePivotDescription(storeDesc.getStoreName());
 		
-		IAggregateProviderDefinition apd = new AggregateProviderDefinition(aggregateProviderType.name());
+		IAggregateProviderDefinition apd = new AggregateProviderDefinition(storeDesc.getAggregateProviderType().name());
 		activePivotDescription.setAggregateProvider(apd);
 		
 		// Hierarchies and dimensions

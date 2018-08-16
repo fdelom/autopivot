@@ -19,13 +19,12 @@ public class AutoPivotProperties {
 	/** Logger **/
 	protected static Logger LOGGER = Logger.getLogger(AutoPivotProperties.class.getName());
 	
+	/** Charset key */
 	public static final String CHARSET = "autopivot.charset";
 	
-	private boolean isFileWatcherActivated = false;
+	/** Charset with default value ISO-8859-1 */
 	private String charset = "ISO-8859-1";
-			
-	public boolean isFileWatcherActivated() { return isFileWatcherActivated; }
-	public void setIsFileWatcherActivated(String value) { this.isFileWatcherActivated = Boolean.parseBoolean(value); }
+	
 	public String getCharset() { return charset; }
 	public void setCharset(String charset) { this.charset = charset; }
 	
@@ -35,8 +34,14 @@ public class AutoPivotProperties {
 		public static final String DATA_INFO_DIR_TO_WATCH = "dirToWatch";
 		public static final String DATA_INFO_PATHMATCHER = "pathMatcher";
 		public static final String DATA_INFO_DATASTORE_PARTITIONFIELD = "datastore.partitionField";
+		public static final String DATA_INFO_AGGREGATE_PROVIDER_TYPE = "aggregateProviderType";
 		
 		public static final String DEFAULT_MATCHER = "glob:**.csv";
+		
+		public enum AGGREGATE_PROVIDER_TYPE {
+			JUST_IN_TIME,
+			BITMAP
+		}
 		
 		public APropertyInfo() {
 			properties = new HashMap<>();
@@ -55,6 +60,13 @@ public class AutoPivotProperties {
 				return Integer.parseInt(properties.get(DATA_INFO_PIVOT_CACHE_SIZE));
 			}
 			return null;
+		}
+		
+		public AGGREGATE_PROVIDER_TYPE getAggregateProviderType() {
+			if (Strings.isNullOrEmpty(properties.get(DATA_INFO_AGGREGATE_PROVIDER_TYPE)) == false) {
+				return AGGREGATE_PROVIDER_TYPE.valueOf(properties.get(DATA_INFO_AGGREGATE_PROVIDER_TYPE));
+			}
+			return AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME;
 		}
 		
 		public String getPathMatcher() { 

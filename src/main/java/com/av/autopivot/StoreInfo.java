@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.av.autopivot.config.properties.AutoPivotProperties.APropertyInfo;
+import com.av.autopivot.config.properties.AutoPivotProperties.APropertyInfo.AGGREGATE_PROVIDER_TYPE;
 import com.av.csv.CSVFormat;
 import com.google.common.base.Strings;
 import com.quartetfs.fwk.QuartetRuntimeException;
@@ -24,16 +25,21 @@ public class StoreInfo {
 	/** Active Pivot cache size */
 	protected Integer cacheSize;
 	
+	/** Aggregate provider type */
+	protected AGGREGATE_PROVIDER_TYPE aggregateProviderType; 
+	
 	public StoreInfo(String storeName,
 					 String partitionField,
 					 List<String> columnNames,
 					 List<String> columnTypes,
-					 Integer cacheSize) {
+					 Integer cacheSize,
+					 AGGREGATE_PROVIDER_TYPE aggregateProviderType) {
 		this.storeName = storeName;
 		this.partitionField = partitionField;
 		this.columnNames = columnNames;
 		this.columnTypes = columnTypes;
 		this.cacheSize = cacheSize;
+		this.aggregateProviderType = aggregateProviderType;
 	}
 	
 	public StoreInfo(String storeName) {
@@ -42,6 +48,7 @@ public class StoreInfo {
 		this.columnNames = new ArrayList<String>();
 		this.columnTypes = new ArrayList<String>();
 		this.cacheSize = null;
+		this.aggregateProviderType = AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME;
 	}
 
 	public void addColumn(String name, String type) {
@@ -84,13 +91,18 @@ public class StoreInfo {
 	public Integer getCacheSize() {
 		return cacheSize;
 	}
+	
+	public AGGREGATE_PROVIDER_TYPE getAggregateProviderType() {
+		return aggregateProviderType;
+	}
 
 	public static StoreInfo createStoreInfo(String storeName, APropertyInfo dataInfo, CSVFormat discovery) {
 		StoreInfo storeInfo = new StoreInfo(storeName,
 											dataInfo.getDataStorePartitionField(), 
 											discovery.getColumnNames(),
 											discovery.getColumnTypes(),
-											dataInfo.getPivotCacheSize());
+											dataInfo.getPivotCacheSize(),
+											dataInfo.getAggregateProviderType());
 
 		return storeInfo;
 	}
