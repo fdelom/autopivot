@@ -185,7 +185,7 @@ public class AutoPivotConfig {
 	}
 	
 	@Bean
-	public DatastoreServiceConfig DatastoreServiceConfig(AutoPivotProperties autoPivotProperties,
+	public DatastoreServiceConfig datastoreServiceConfig(AutoPivotProperties autoPivotProperties,
 														 AutoPivotDiscoveryCreator discoveryCreator) {
 		return new DatastoreServiceConfig(autoPivotProperties, discoveryCreator);
 	}

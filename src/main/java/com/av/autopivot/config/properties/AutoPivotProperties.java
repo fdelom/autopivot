@@ -17,7 +17,7 @@ import com.quartetfs.fwk.QuartetRuntimeException;
 public class AutoPivotProperties {
 
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(AutoPivotProperties.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(AutoPivotProperties.class.getName());
 	
 	/** Charset key */
 	public static final String CHARSET = "autopivot.charset";
@@ -110,7 +110,7 @@ public class AutoPivotProperties {
 	}	
 	
 	@Autowired
-	private void LoadConfiguration() {
+	private void loadConfiguration() {
 		dataInfoMap = new HashMap<String, DataInfo>();
 		refDataInfoMap = new HashMap<String, RefDataInfo>();
 		

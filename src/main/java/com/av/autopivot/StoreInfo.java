@@ -77,7 +77,7 @@ public class StoreInfo {
 	}
 	
 	public void setPartitionField(String fieldName) {
-		this.setPartitionField(fieldName);
+		this.partitionField = fieldName;
 	}
 	
 	public String getPartitionField() {

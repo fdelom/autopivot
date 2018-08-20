@@ -35,7 +35,7 @@ import com.quartetfs.fwk.QuartetRuntimeException;
 public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPostProcessor<Object, Object>{
 
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(CurrencyGroupManyToManyPostProcessor.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(CurrencyGroupManyToManyPostProcessor.class.getName());
 	
 	/** serialVersionUID */
 	private static final long serialVersionUID = 6298172968882576777L;

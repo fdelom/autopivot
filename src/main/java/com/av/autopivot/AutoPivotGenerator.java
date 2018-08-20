@@ -88,7 +88,7 @@ import com.quartetfs.fwk.contributions.impl.ClasspathContributionProvider;
  */
 public class AutoPivotGenerator {
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(AutoPivotGenerator.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(AutoPivotGenerator.class.getName());
 	
 	/** Reference Packages */
 	private final static String ACTIVEVIAM_PACKAGE = "com.activeviam";
@@ -113,10 +113,10 @@ public class AutoPivotGenerator {
 	private static final Set<String> NUMERICS_ONLY = QfsArrays.mutableSet("double", "float", "long");
 	
 	/** Active Pivot Manager descriptions */
-	private IActivePivotManagerDescription activePivotManagerDescription = null;
+	private volatile IActivePivotManagerDescription activePivotManagerDescription = null;
 	
 	/** Active Pivot descriptions Map */
-	private Map<String, IActivePivotDescription> activePivotDescriptionMap = null;
+	private volatile Map<String, IActivePivotDescription> activePivotDescriptionMap = null;
 		
 	public static void initRegistry(List<String> packageList) {
 		List<String> consolidatedPackageList = new ArrayList<>();
@@ -548,8 +548,9 @@ public class AutoPivotGenerator {
 		if (activePivotDescriptionMap == null) {
 			synchronized (this) {
 				if (activePivotDescriptionMap == null) {
-					activePivotDescriptionMap = new ConcurrentHashMap<>();
-					activePivotDescriptionMap.put(storeName, new ActivePivotDescription());
+					ConcurrentHashMap<String, IActivePivotDescription> localMap = new ConcurrentHashMap<>();
+					localMap.put(storeName, new ActivePivotDescription());
+					activePivotDescriptionMap = localMap;
 				}
 			}
 		}

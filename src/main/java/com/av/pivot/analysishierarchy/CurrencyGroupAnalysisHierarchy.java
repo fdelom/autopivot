@@ -30,7 +30,7 @@ import com.quartetfs.fwk.QuartetExtendedPluginValue;
 public class CurrencyGroupAnalysisHierarchy extends AAnalysisHierarchy {
 	
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(CurrencyGroupAnalysisHierarchy.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(CurrencyGroupAnalysisHierarchy.class.getName());
 
 	/** serialVersionUID */
 	private static final long serialVersionUID = -3133657589316087844L;

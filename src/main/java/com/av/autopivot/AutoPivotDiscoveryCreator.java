@@ -32,7 +32,7 @@ import com.sun.istack.logging.Logger;
 
 public class AutoPivotDiscoveryCreator {
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(AutoPivotDiscoveryCreator.class);
+	protected static final Logger LOGGER = Logger.getLogger(AutoPivotDiscoveryCreator.class);
 	
 	/** AutoPivot Properties */
 	@Autowired

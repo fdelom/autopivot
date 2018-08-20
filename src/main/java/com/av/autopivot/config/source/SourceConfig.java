@@ -68,7 +68,7 @@ import com.quartetfs.fwk.impl.Pair;
 public class SourceConfig {
 
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(SourceConfig.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(SourceConfig.class.getName());
 	
 	/** AutoPivot Properties */
 	@Autowired
@@ -105,15 +105,15 @@ public class SourceConfig {
 	@DependsOn(value = "startManager")
 	public Void loadAllData() throws Exception {
 		
-		LoadData();
-		LoadRefData();
+		loadData();
+		loadRefData();
 		
 		LOGGER.info("AutoPivot initial loading complete.");
 		
 		return null; // Void
 	}
 
-	private void LoadRefData() {
+	private void loadRefData() {
 		AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator);
 		List<Pair<RefDataInfo, CSVFormat>> discoveryList = discoveryCreator.createDiscoveryRefFormat();
 
@@ -155,7 +155,7 @@ public class SourceConfig {
 		}
 	}
 
-	private void LoadData() {
+	private void loadData() {
 		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
 
 		for (String dataToLoad : dataInfoMap.keySet()) {
