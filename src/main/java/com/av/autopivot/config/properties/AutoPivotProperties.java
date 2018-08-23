@@ -2,6 +2,7 @@ package com.av.autopivot.config.properties;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +10,8 @@ import java.util.Properties;
 
 import org.jboss.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.google.common.base.Strings;
@@ -24,7 +27,8 @@ public class AutoPivotProperties {
 	public static final String CHARSET = "autopivot.charset";
 	
 	/** Charset with default value ISO-8859-1 */
-	private String charset = "ISO-8859-1";
+	public static final String DEFAULT_CHARSET = "ISO-8859-1";
+	private String charset = DEFAULT_CHARSET;
 	
 	public String getCharset() { return charset; }
 	public void setCharset(String charset) { this.charset = charset; }
@@ -37,7 +41,8 @@ public class AutoPivotProperties {
 		public static final String DATA_INFO_DATASTORE_PARTITIONFIELD = "datastore.partitionField";
 		public static final String DATA_INFO_AGGREGATE_PROVIDER_TYPE = "aggregateProviderType";
 		
-		public static final String DEFAULT_MATCHER = "glob:**.csv";
+		public static final String DEFAULT_PATH_MATCHER = "glob:**.csv";
+		public static final AGGREGATE_PROVIDER_TYPE DEFAULT_AGGREGATE_PROVIDER_TYPE = AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME;
 		
 		public enum AGGREGATE_PROVIDER_TYPE {
 			JUST_IN_TIME,
@@ -67,12 +72,12 @@ public class AutoPivotProperties {
 			if (Strings.isNullOrEmpty(properties.get(DATA_INFO_AGGREGATE_PROVIDER_TYPE)) == false) {
 				return AGGREGATE_PROVIDER_TYPE.valueOf(properties.get(DATA_INFO_AGGREGATE_PROVIDER_TYPE));
 			}
-			return AGGREGATE_PROVIDER_TYPE.JUST_IN_TIME;
+			return DEFAULT_AGGREGATE_PROVIDER_TYPE;
 		}
 		
 		public String getPathMatcher() { 
 			String pathMatcher = properties.get(DATA_INFO_PATHMATCHER);
-			return Strings.isNullOrEmpty(pathMatcher) ? DEFAULT_MATCHER : pathMatcher; 
+			return Strings.isNullOrEmpty(pathMatcher) ? DEFAULT_PATH_MATCHER : pathMatcher; 
 		}
 		
 		public void setProperty(String dataElmName, String key, String value) {
@@ -108,14 +113,11 @@ public class AutoPivotProperties {
 	
 	public Map<String, RefDataInfo> getRefDataInfoMap() {
 		return refDataInfoMap;
-	}	
+	}
 	
-	@Autowired
-	protected void loadConfiguration() {
-		dataInfoMap = new HashMap<String, DataInfo>();
-		refDataInfoMap = new HashMap<String, RefDataInfo>();
-		
-
+	@Bean
+	@Qualifier("autoPivotProperties")
+	public Properties autoPivotProperties() {
 		FileInputStream fileInputStream = null;
 		
 		try {
@@ -127,39 +129,45 @@ public class AutoPivotProperties {
 			Properties autopivotProps = new Properties();
 			fileInputStream = new FileInputStream(autopivotConfigPath);
 			autopivotProps.load(fileInputStream);
-			
-			Enumeration<Object> keyEnumeration = autopivotProps.keys();
-			while (keyEnumeration.hasMoreElements()) {
-				String key = (String)keyEnumeration.nextElement();
-				if (key.equals(CHARSET)) {
-					setCharset(autopivotProps.getProperty(key));
-				}
-				else if (key.startsWith(DataInfo.DATA_INFO_ROOT_KEY)) {
-					addPropertyInfo(dataInfoMap,
-									DataInfo.class,
-									getElmName(DataInfo.DATA_INFO_ROOT_KEY, key),
-									key,
-									autopivotProps.getProperty(key));
-				}
-				else if (key.startsWith(RefDataInfo.REF_DATA_INFO_ROOT_KEY)) {
-					addPropertyInfo(refDataInfoMap,
-									RefDataInfo.class,
-									getElmName(RefDataInfo.REF_DATA_INFO_ROOT_KEY, key),
-									key,
-									autopivotProps.getProperty(key));
-				}
-			}
+			return autopivotProps;
 		} catch (IOException ex) {
-			LOGGER.error("Could not load properly the autopivot.properties.");
+			throw new QuartetRuntimeException("Could not load properly the autopivot.properties.");
 		}
 		finally {
 			if (fileInputStream != null) {
 				try {
 					fileInputStream.close();
 				} catch (IOException ex) {
-					LOGGER.error("Could not close properly the autopivot.properties.");
-					throw new QuartetRuntimeException("Could not load properly the autopivot.properties.", ex);
+					throw new QuartetRuntimeException("Could not close properly the autopivot.properties.", ex);
 				}
+			}
+		}
+	}
+	
+	@Autowired
+	public void loadConfiguration(@Qualifier("autoPivotProperties") Properties autoPivotProperties) throws ParseException {
+		dataInfoMap = new HashMap<String, DataInfo>();
+		refDataInfoMap = new HashMap<String, RefDataInfo>();
+
+		Enumeration<Object> keyEnumeration = autoPivotProperties.keys();
+		while (keyEnumeration.hasMoreElements()) {
+			String key = (String)keyEnumeration.nextElement();
+			if (key.equals(CHARSET)) {
+				setCharset(autoPivotProperties.getProperty(key));
+			}
+			else if (key.startsWith(DataInfo.DATA_INFO_ROOT_KEY)) {
+				addPropertyInfo(dataInfoMap,
+								DataInfo.class,
+								getElmName(DataInfo.DATA_INFO_ROOT_KEY, key),
+								key,
+								autoPivotProperties.getProperty(key));
+			}
+			else if (key.startsWith(RefDataInfo.REF_DATA_INFO_ROOT_KEY)) {
+				addPropertyInfo(refDataInfoMap,
+								RefDataInfo.class,
+								getElmName(RefDataInfo.REF_DATA_INFO_ROOT_KEY, key),
+								key,
+								autoPivotProperties.getProperty(key));
 			}
 		}
 		LOGGER.info(" autopivot.properties is loaded.");
@@ -169,7 +177,13 @@ public class AutoPivotProperties {
 														   Class<T> elmClassType, 
 														   String elmName, 
 														   String key,
-														   String property) {
+														   String property) throws ParseException {
+		if (Strings.isNullOrEmpty(elmName)) {
+			LOGGER.error("Could not find the identifier of the element associated to the property key: " + key);
+			throw new ParseException("Could not find the identifier of the element associated to the property key: " + key, 
+									 key.length());
+		}
+		
 		T elm = null;
 		if (propertyInfoMap.containsKey(elmName)) {
 			elm = propertyInfoMap.get(elmName);

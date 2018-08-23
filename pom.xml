@@ -24,6 +24,9 @@
 		<activepivot.version>5.7.1</activepivot.version>
 		<activeui.version>4.2.2</activeui.version>
 		<jetty.version>9.4.8.v20171121</jetty.version>
+		<hamcrest.version>1.3</hamcrest.version>
+		<powermockito.version>1.7.4</powermockito.version>
+		<mockito.version>1.10.19</mockito.version>
 	</properties>
 
 	<dependencies>
@@ -96,6 +99,36 @@
 			<groupId>org.webjars.npm</groupId>
 			<artifactId>react-dom</artifactId>
 			<version>16.3.1</version>
+		</dependency>
+		
+		<!-- Hamcrest -->
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-library</artifactId>
+			<version>${hamcrest.version}</version>
+			<scope>test</scope>
+		</dependency>
+		
+		<!-- PowerMockito -->
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<version>${powermockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito2</artifactId>
+			<version>${powermockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+		
+		<!-- Mockito -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

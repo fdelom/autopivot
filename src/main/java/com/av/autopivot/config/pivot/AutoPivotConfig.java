@@ -91,6 +91,8 @@ import com.quartetfs.fwk.monitoring.jmx.impl.JMXEnabler;
 @Configuration
 @Import(
 value = {
+		AutoPivotProperties.class,
+		
 		ActivePivotConfig.class,
 		ActivePivotManagerDescriptionConfig.class,
 		DatastoreDescriptionConfig.class,
@@ -177,11 +179,6 @@ public class AutoPivotConfig {
 		apConfig.activePivotManager().start();
 
 		return null;
-	}
-	
-	@Bean
-	public AutoPivotProperties autoPivotProperties() {
-		return new AutoPivotProperties();
 	}
 	
 	@Bean
