@@ -127,7 +127,7 @@ public class AutoPivotGenerator {
 		
 		consolidatedPackageList.addAll(packageList);
 		
-		String[] packageArray = consolidatedPackageList.toArray(new String[0]);
+		String[] packageArray = consolidatedPackageList.toArray(new String[consolidatedPackageList.size()]);
 		Registry.setContributionProvider(new ClasspathContributionProvider(packageArray));
 	}
 	

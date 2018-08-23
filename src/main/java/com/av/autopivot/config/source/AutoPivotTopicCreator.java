@@ -20,7 +20,7 @@ import com.sun.istack.logging.Logger;
 
 public class AutoPivotTopicCreator {
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(AutoPivotTopicCreator.class);
+	protected static final Logger LOGGER = Logger.getLogger(AutoPivotTopicCreator.class);
 	
 	private AutoPivotDiscoveryCreator autoPivotDiscoveryCreator = null;
 	

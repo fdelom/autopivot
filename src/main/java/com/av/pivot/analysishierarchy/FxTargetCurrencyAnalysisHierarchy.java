@@ -1,10 +1,9 @@
 package com.av.pivot.analysishierarchy;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
+import com.activeviam.collections.ImmutableList;
+import com.activeviam.collections.impl.ImmutableArrayList;
 import com.quartetfs.biz.pivot.cube.hierarchy.IAnalysisHierarchyInfo;
 import com.quartetfs.biz.pivot.cube.hierarchy.IMultiVersionHierarchy;
 import com.quartetfs.biz.pivot.cube.hierarchy.axis.impl.AAnalysisHierarchy;
@@ -20,7 +19,9 @@ public class FxTargetCurrencyAnalysisHierarchy extends AAnalysisHierarchy {
 	public static final String PLUGIN_KEY =  "FX_AH";
 
 	/** static members values */
-	public static final List<String> FX_TARGET_CURRENCIES = Arrays.asList("EUR", "USD");
+	private static final ImmutableList<Object[]> FX_TARGET_CURRENCIES 
+					= ImmutableArrayList.of(new Object[] { "EUR" }, 
+											new Object[] { "USD" });
 	
 	public FxTargetCurrencyAnalysisHierarchy(IAnalysisHierarchyInfo info) {
 		super(info);
@@ -28,9 +29,7 @@ public class FxTargetCurrencyAnalysisHierarchy extends AAnalysisHierarchy {
 
 	@Override
 	public Collection<Object[]> buildDiscriminatorPaths() {
-		return FX_TARGET_CURRENCIES.stream()
-								   .map(cur -> new Object[] { cur })
-								   .collect(Collectors.toList());
+		return FX_TARGET_CURRENCIES.toCollection();
 	}
 
 	@Override

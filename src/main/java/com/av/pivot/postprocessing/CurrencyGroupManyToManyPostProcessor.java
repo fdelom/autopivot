@@ -44,13 +44,13 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 	public static final String PLUGIN_KEY = "CGMTM_PP";
 
 	/** currency level info from facts */
-	private ILevelInfo currencyLevelInfo;
+	protected ILevelInfo currencyLevelInfo;
 	
 	/** group level info from Analysis Hierarchy */
-	private ILevelInfo groupLevelInfo;
+	protected ILevelInfo groupLevelInfo;
 	
 	/** currency level info from Analysis Hierarchy */
-	private ILevelInfo currencyGroupLevelInfo;
+	protected ILevelInfo currencyGroupLevelInfo;
 
 	public CurrencyGroupManyToManyPostProcessor(String name, IPostProcessorCreationContext creationContext) {
 		super(name, creationContext);
@@ -149,7 +149,7 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 			return result;
 		}
 		
-		private void createCompiledQueryGroupsFromCurrency() {
+		private synchronized void createCompiledQueryGroupsFromCurrency() {
 			final IDatastoreVersion dv = getDatastoreVersion();
 			
 			IDynamicCondition dynamicCondition = BaseConditions.Equal(CURRENCY)
@@ -210,7 +210,7 @@ public class CurrencyGroupManyToManyPostProcessor extends ADynamicAggregationPos
 			}
 			currentCurrency = (String)currencyMember;
 			groups = getGroups(currentCurrency);
-			if (groups == null) {
+			if (groups.isEmpty()) {
 				LOGGER.warning("Store used to define groups of currencies is probably empty or currency: " + 
 							   currentCurrency + 
 							   " has no group");

@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -158,11 +159,11 @@ public class SourceConfig {
 	private void loadData() {
 		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
 
-		for (String dataToLoad : dataInfoMap.keySet()) {
-			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(dataInfoMap.get(dataToLoad));
-			ICSVSource<Path> source = createCSVSource(dataToLoad);
+		for (Entry<String, DataInfo> entry : dataInfoMap.entrySet()) {
+			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(entry.getValue());
+			ICSVSource<Path> source = createCSVSource(entry.getKey());
 			AutoPivotTopicCreator topicCreator = new AutoPivotTopicCreator(discoveryCreator);
-			ICSVTopic<Path> topic = topicCreator.createTopic(discovery, dataToLoad, dataInfoMap.get(dataToLoad));
+			ICSVTopic<Path> topic = topicCreator.createTopic(discovery, entry.getKey(), entry.getValue());
 			
 			source.addTopic(topic);
 			
@@ -183,15 +184,15 @@ public class SourceConfig {
 				}
 				
 			};
-			channelFactory.setCalculatedColumns(dataToLoad, calculatedColumns);
+			channelFactory.setCalculatedColumns(entry.getKey(), calculatedColumns);
 			
 			// Create Listener to have an effective filewatching
 			final ITuplePublisher<IFileInfo<Path>> publisher 
 							= new AutoCommitTuplePublisher<>(new TuplePublisher<>(datastoreConfig.datastore(), 
-																				  dataToLoad));
+																				  entry.getKey()));
 			IStoreMessageChannel<IFileInfo<Path>, ILineReader> channel
-							= channelFactory.createChannel(dataToLoad,
-														   dataToLoad,
+							= channelFactory.createChannel(entry.getKey(),
+														   entry.getKey(),
 														   publisher);
 			source.listen(channel);
 		}

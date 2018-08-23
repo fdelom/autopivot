@@ -71,25 +71,20 @@ public class AutoPivotDiscoveryCreator {
 		// Find the last ! and cut it off at that location. If this isn't being run from a jar,
 		// there is no !, so it will cause an exception.
 		try {
-			try {
-				dirName = dirName.substring(0, dirName.lastIndexOf('!'));
-			}
-			catch (Exception e) {
-			}
-			
-			// Find the last / and cut it off at that location
-			dirName = dirName.substring(0, dirName.lastIndexOf('/') + 1);
-			// If it start with /, cut it off
-			if (dirName.startsWith("/")) {
-				dirName = dirName.substring(1, dirName.length());
-			}
-			// If it start with file:/, cut it off
-			if (dirName.startsWith("file:/")) {
-				dirName = dirName.substring(6, dirName.length());
-			}
+			dirName = dirName.substring(0, dirName.lastIndexOf('!'));
 		}
 		catch (Exception e) {
-			dirName = "";
+		}
+		
+		// Find the last / and cut it off at that location
+		dirName = dirName.substring(0, dirName.lastIndexOf('/') + 1);
+		// If it start with /, cut it off
+		if (dirName.startsWith("/")) {
+			dirName = dirName.substring(1, dirName.length());
+		}
+		// If it start with file:/, cut it off
+		if (dirName.startsWith("file:/")) {
+			dirName = dirName.substring(6, dirName.length());
 		}
 		return dirName;
 	}
@@ -180,8 +175,7 @@ public class AutoPivotDiscoveryCreator {
 		ArrayList<Pair<RefDataInfo, CSVFormat>> discoveryList = new ArrayList<>();
 		
 		Map<String, RefDataInfo> refDataInfoMap = autoPivotProps.getRefDataInfoMap();
-		for (String refDataToLoad : refDataInfoMap.keySet()) {
-			RefDataInfo refDataInfo = refDataInfoMap.get(refDataToLoad);
+		for (RefDataInfo refDataInfo : refDataInfoMap.values()) {
 			if (Strings.isNullOrEmpty(refDataInfo.getDirToWatch()) == false) {
 				discoveryList.addAll(discoverRefDir(refDataInfo));
 			}

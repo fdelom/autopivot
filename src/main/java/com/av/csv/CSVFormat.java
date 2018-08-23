@@ -50,11 +50,11 @@ public class CSVFormat {
 	
 	/** Get the only the file name without extension */
 	public String getFileNameWithoutExtension() {
-		int nBeginCut = fileName.lastIndexOf("\\");
+		int nBeginCut = fileName.lastIndexOf('\\');
 		if (nBeginCut == -1) {
-			nBeginCut = fileName.lastIndexOf("/");
+			nBeginCut = fileName.lastIndexOf('/');
 		}
-		return fileName.substring(nBeginCut + 1, fileName.lastIndexOf("."));
+		return fileName.substring(nBeginCut + 1, fileName.lastIndexOf('.'));
 	}
 	
 	public String getFileName() { return fileName; }

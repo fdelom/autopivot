@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -98,12 +99,10 @@ public class DatastoreDescriptionConfig implements IDatastoreDescriptionConfig {
 		final Collection<IStoreDescription> stores = new LinkedList<>();
 		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
 		AutoPivotGenerator generator = generator();
-		for (String key : dataInfoMap.keySet()) {
-			DataInfo dataInfo = dataInfoMap.get(key);
+		for (Entry<String, DataInfo> entry : dataInfoMap.entrySet()) {			
+			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(entry.getValue());
 			
-			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(dataInfo);
-			
-			StoreInfo storeDesc = StoreInfo.createStoreInfo(key, dataInfo, discovery);
+			StoreInfo storeDesc = StoreInfo.createStoreInfo(entry.getKey(), entry.getValue(), discovery);
 			stores.add(generator.createStoreDescription(storeDesc));
 		}
 		return stores;

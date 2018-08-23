@@ -152,7 +152,7 @@ public class FXPostProcessor extends ADynamicAggregationPostProcessor<Object, Ob
 		return getFirstRate(cursor);
 	}
 
-	private void createCompiledQueryFxRate() {
+	private synchronized void createCompiledQueryFxRate() {
 		final IDatastoreVersion dv = getDatastoreVersion();
 		IRecordQuery query = new RecordQuery(FOREX_STORE_NAME, 
 											 createDynamicCondition(), 

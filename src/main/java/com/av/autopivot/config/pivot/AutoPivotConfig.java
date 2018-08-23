@@ -122,7 +122,7 @@ value = {
 public class AutoPivotConfig {
 
 	/** Logger **/
-	protected static Logger LOGGER = Logger.getLogger(AutoPivotConfig.class.getName());
+	protected static final Logger LOGGER = Logger.getLogger(AutoPivotConfig.class.getName());
 
 	/** Before anything else we statically initialize the ActiveViam Registry. */
 	static {

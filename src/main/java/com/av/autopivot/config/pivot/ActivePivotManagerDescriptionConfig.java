@@ -19,6 +19,7 @@
 package com.av.autopivot.config.pivot;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,15 +82,15 @@ public class ActivePivotManagerDescriptionConfig implements IActivePivotManagerD
 		AutoPivotGenerator generator = datastoreConfig.generator();
 		
 		Map<String, DataInfo> dataInfoMap = autoPivotProps.getDataInfoMap();
-		for (String key : dataInfoMap.keySet()) {
-			DataInfo dataInfo = dataInfoMap.get(key);
+		for (Entry<String, DataInfo> entry : dataInfoMap.entrySet()) {
+			DataInfo dataInfo = entry.getValue();
 			
 			CSVFormat discovery = discoveryCreator.createDiscoveryFormat(dataInfo);
 			
-			StoreInfo storeDesc = StoreInfo.createStoreInfo(key, dataInfo, discovery);
+			StoreInfo storeDesc = StoreInfo.createStoreInfo(entry.getKey(), dataInfo, discovery);
 			generator.createCube(storeDesc);
 			
-			if (key.equals("risks")) {
+			if (entry.getKey().equals("risks")) {
 				addCustomDimensions(generator, storeDesc);
 				addCustomPostProcessors(generator, storeDesc);
 			}

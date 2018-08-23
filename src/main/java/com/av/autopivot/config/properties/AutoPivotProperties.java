@@ -1,6 +1,7 @@
 package com.av.autopivot.config.properties;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,17 +111,22 @@ public class AutoPivotProperties {
 	}	
 	
 	@Autowired
-	private void loadConfiguration() {
+	protected void loadConfiguration() {
 		dataInfoMap = new HashMap<String, DataInfo>();
 		refDataInfoMap = new HashMap<String, RefDataInfo>();
+		
+
+		FileInputStream fileInputStream = null;
 		
 		try {
 			String autopivotConfigPath = Thread.currentThread()
 											   .getContextClassLoader()
 											   .getResource("autopivot.properties")
 											   .getPath();
+			
 			Properties autopivotProps = new Properties();
-			autopivotProps.load(new FileInputStream(autopivotConfigPath));
+			fileInputStream = new FileInputStream(autopivotConfigPath);
+			autopivotProps.load(fileInputStream);
 			
 			Enumeration<Object> keyEnumeration = autopivotProps.keys();
 			while (keyEnumeration.hasMoreElements()) {
@@ -143,9 +149,18 @@ public class AutoPivotProperties {
 									autopivotProps.getProperty(key));
 				}
 			}
-		}
-		catch (Exception ex) {
+		} catch (IOException ex) {
 			LOGGER.error("Could not load properly the autopivot.properties.");
+		}
+		finally {
+			if (fileInputStream != null) {
+				try {
+					fileInputStream.close();
+				} catch (IOException ex) {
+					LOGGER.error("Could not close properly the autopivot.properties.");
+					throw new QuartetRuntimeException("Could not load properly the autopivot.properties.", ex);
+				}
+			}
 		}
 		LOGGER.info(" autopivot.properties is loaded.");
 	}
